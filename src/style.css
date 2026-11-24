@@ -137,4 +137,6 @@ dialog h2, dialog p { margin: 0; }
   .work-entry span, .work-entry strong { font-size: .75rem; }
 }
 
-.portal-link { display: inline-flex; align-items: center; text-decoration: none; }
+ .handoff { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 14px; color: var(--muted); font-size: .82rem; }
+.handoff button, #delete-work { min-height: 38px; border: 1px solid var(--line); background: #f1efe8; border-radius: 6px; padding: 0 10px; }
+#delete-work { margin-right: auto; color: #852f25; }

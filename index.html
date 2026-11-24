@@ -9,13 +9,12 @@
 <body>
   <header class="masthead">
     <span class="wordmark">SECHA STUDIO+</span>
-    <span class="status">Private project workspace</span>
+    <span id="storage-mode" class="status">Project workspace</span>
   </header>
   <main>
     <div class="intro">
       <div><h1>Jouri Apartment</h1><p>Renovation Control Tower</p></div>
       <button id="add-pin" class="primary" type="button" disabled>+ Drop work pin</button>
-      <a id="portal-link" class="primary portal-link" href="https://jouri-apartment.jopelo16.chatgpt.site/" hidden>Open work register</a>
     </div>
     <div id="totals" class="totals" aria-label="Work summary"></div>
     <div class="layout">
@@ -57,6 +56,12 @@
           <label>Status<select id="status-filter"></select></label>
         </div>
       </div>
+      <div id="handoff-controls" class="handoff" hidden>
+        <button id="export-work" type="button">Export work</button>
+        <button id="import-work" type="button">Import work</button>
+        <input id="import-file" type="file" accept=".json,application/json" hidden>
+        <span>Saved on this browser. Export and import to hand off changes.</span>
+      </div>
       <p id="portal-message" role="status" aria-live="polite">Loading saved work…</p>
       <ol id="work-list" class="work-list"></ol>
     </section>
@@ -78,7 +83,7 @@
       </div>
       <label>Scope and site notes<textarea name="notes" rows="3" maxlength="2500"></textarea></label>
       <p id="form-error" role="alert" hidden></p>
-      <div class="form-actions"><button id="close-editor" type="button">Cancel</button><button class="primary" type="submit">Save work</button></div>
+      <div class="form-actions"><button id="delete-work" type="button" hidden>Remove pin</button><button id="close-editor" type="button">Cancel</button><button class="primary" type="submit">Save work</button></div>
     </form>
   </dialog>
   <script type="module" src="/src/main.js"></script>

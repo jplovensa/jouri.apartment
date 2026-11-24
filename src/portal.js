@@ -1,3 +1,4 @@
+import { makeLocalRegister } from './local-register.js';
 import { ROOM_NAMES, SCOPES, STATUSES } from './work-data.js';
 
 const $ = (id) => document.getElementById(id);
@@ -23,7 +24,8 @@ function choices(select, entries) {
   }
 }
 
-export function makePortal({ rooms, selectRoom, showPlan, redraw, canPlace, currentRoom }) {
+export function makePortal({ rooms, plan, selectRoom, showPlan, redraw, canPlace, currentRoom, browserLocal }) {
+  const register = browserLocal ? makeLocalRegister(window.localStorage, plan) : null;
   let items = [];
   let drafting = false;
   let editing;
@@ -68,6 +70,7 @@ export function makePortal({ rooms, selectRoom, showPlan, redraw, canPlace, curr
     for (const key of ['title', 'notes', 'owner', 'quantity', 'due']) fields[key].value = row?.[key] ?? '';
     $('editor-title').textContent = row ? 'Edit work pin' : 'New work pin';
     showLocation();
+    $('delete-work').hidden = !register || !row || Boolean(row.source);
     dialog.showModal();
   }
 
@@ -122,10 +125,13 @@ export function makePortal({ rooms, selectRoom, showPlan, redraw, canPlace, curr
 
   async function load() {
     try {
-      const response = await fetch('./api/work');
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error);
-      items = data.items;
+      if (register) items = register.list();
+      else {
+        const response = await fetch('./api/work');
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error);
+        items = data.items;
+      }
       ready = true;
       placeButton.disabled = false;
       notice('');
@@ -174,13 +180,17 @@ export function makePortal({ rooms, selectRoom, showPlan, redraw, canPlace, curr
     try {
       const data = Object.fromEntries(new FormData(form));
       Object.assign(data, { x: point.x, z: point.z, revision: editing?.revision });
-      const response = await fetch(editing ? `./api/work/${editing.id}` : './api/work', {
-        method: editing ? 'PUT' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error);
+      let result;
+      if (register) result = { item: register.save(data, editing) };
+      else {
+        const response = await fetch(editing ? `./api/work/${editing.id}` : './api/work', {
+          method: editing ? 'PUT' : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        });
+        result = await response.json();
+        if (!response.ok) throw new Error(result.error);
+      }
       items = [result.item, ...items.filter((row) => row.id !== result.item.id)];
       // Keep newly saved work visible even if the previous filters hid it.
       if (roomFilter.value && roomFilter.value !== result.item.room) roomFilter.value = '';
@@ -197,6 +207,48 @@ export function makePortal({ rooms, selectRoom, showPlan, redraw, canPlace, curr
       submit.textContent = 'Save work';
     }
   });
+
+  if (register) {
+    $('storage-mode').textContent = 'Browser-local register';
+    $('handoff-controls').hidden = false;
+    $('export-work').addEventListener('click', () => {
+      try {
+        const url = URL.createObjectURL(new Blob([JSON.stringify(register.export(), null, 2)], { type: 'application/json' }));
+        const link = make('a');
+        link.href = url;
+        link.download = 'jouri-work-register.json';
+        link.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      } catch (error) { notice(error.message); }
+    });
+    const fileInput = $('import-file');
+    $('import-work').addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', async () => {
+      const file = fileInput.files[0];
+      if (!file) return;
+      try {
+        if (file.size > 1024 * 1024) throw new Error('The register file is larger than 1 MB.');
+        const result = register.import(JSON.parse(await file.text()));
+        items = register.list();
+        render();
+        notice(`Imported ${result.imported} work updates.${result.conflicts ? ' Conflicting revisions stayed as saved on this browser.' : ''}`);
+      } catch (error) { notice(error.message); }
+      finally { fileInput.value = ''; }
+    });
+    $('delete-work').addEventListener('click', () => {
+      if (!editing || saving) return;
+      try {
+        register.remove(editing);
+        items = register.list();
+        dialog.close();
+        render();
+        notice('Work pin removed from this browser.');
+      } catch (error) {
+        $('form-error').textContent = error.message;
+        $('form-error').hidden = false;
+      }
+    });
+  }
 
   load();
   return {

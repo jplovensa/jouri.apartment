@@ -3,6 +3,8 @@ import plan from './plan.json' with { type: 'json' };
 import { furnish } from './furnishings.js';
 import { CLOSET, RACK_FRONT, RAIL_END, makeWardrobe } from './wardrobe.js';
 
+export const APARTMENT_PLAN = plan;
+
 export const ROOMS = {
   master: { name: 'Main bedroom', color: '#c89c77', label: [1.80, 1.83] },
   bath: { name: 'Bathroom', color: '#ced5cf', label: [4.34, 1.62] },

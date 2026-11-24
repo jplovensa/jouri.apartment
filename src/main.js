@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { ROOMS, makeApartment } from './model.js';
+import { APARTMENT_PLAN, ROOMS, makeApartment } from './model.js';
 import { JOINERY, RAIL_CLEARANCE_MM } from './wardrobe.js';
 import './style.css';
 
@@ -234,16 +234,16 @@ try {
   for (const button of [...viewButtons, $('reset')]) button.disabled = true;
 }
 
-if (import.meta.env.MODE !== 'public') {
-  import('./portal.js').then(({ makePortal }) => {
-    portal = makePortal({
-      rooms: ROOMS,
-      selectRoom,
-      showPlan: () => setView('plan'),
-      redraw: () => sceneView?.render(),
-      canPlace: () => Boolean(sceneView && $('fallback').hidden),
-      currentRoom: () => selection,
-    });
+import('./portal.js').then(({ makePortal }) => {
+  portal = makePortal({
+    rooms: ROOMS,
+    plan: APARTMENT_PLAN,
+    browserLocal: import.meta.env.MODE !== 'server',
+    selectRoom,
+    showPlan: () => setView('plan'),
+    redraw: () => sceneView?.render(),
+    canPlace: () => Boolean(sceneView && $('fallback').hidden),
+    currentRoom: () => selection,
   });
-}
+});
 selectRoom(null);
