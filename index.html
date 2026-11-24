@@ -25,9 +25,15 @@
           <button type="button" data-view="wic" aria-pressed="false">Closet detail</button>
           <button type="button" data-view="wic-plan" aria-pressed="false">Closet plan</button>
         </div>
+        <div class="wall-toolbar" role="group" aria-label="Wall visibility">
+          <button type="button" data-walls="on" aria-pressed="false">With walls</button>
+          <button type="button" data-walls="off" aria-pressed="true">Without walls</button>
+          <a href="https://www.jotun.com/id-en/decorative/colours/interior/all-interior-colours/0471-light-antique-interior" target="_blank" rel="noopener">Jotun 0471 Light Antique</a>
+        </div>
         <div id="viewport" class="viewport">
           <div id="labels" class="labels" aria-hidden="true"></div>
           <div id="map-pins" class="labels"></div>
+          <p id="asset-status" class="asset-status" role="status" hidden></p>
           <p id="fallback" hidden>WebGL is unavailable. You can place a pin at a room centre or edit the register below.</p>
         </div>
         <div class="viewport-footer">
@@ -44,6 +50,7 @@
           <a id="reference-link" href="./references/apartment.webp" target="_blank" rel="noopener">
             <img id="reference-image" src="./references/apartment.webp" alt="Interiola apartment axonometric">
           </a>
+          <button id="focus-room" type="button" hidden>Focus on room</button>
           <div class="reference-footer"><span>Interiola · design reference</span><button id="next-reference" type="button" hidden>Next view</button></div>
         </section>
       </aside>
@@ -54,7 +61,14 @@
         <div class="filters">
           <label>Room<select id="room-filter"></select></label>
           <label>Status<select id="status-filter"></select></label>
+          <label>Search work<input id="work-search" type="search" placeholder="Title, scope or assignee"></label>
         </div>
+      </div>
+      <div class="work-views" role="group" aria-label="Work register view">
+        <button type="button" data-register-view="list" aria-pressed="true">Register</button>
+        <button type="button" data-register-view="board" aria-pressed="false">Status board</button>
+        <button type="button" data-register-view="schedule" aria-pressed="false">Schedule</button>
+        <button type="button" data-register-view="rooms" aria-pressed="false">Room progress</button>
       </div>
       <div id="handoff-controls" class="handoff" hidden>
         <button id="export-work" type="button">Export work</button>
@@ -63,7 +77,7 @@
         <span>Saved on this browser. Export and import to hand off changes.</span>
       </div>
       <p id="portal-message" role="status" aria-live="polite">Loading saved work…</p>
-      <ol id="work-list" class="work-list"></ol>
+      <div id="work-view"></div>
     </section>
   </main>
   <dialog id="editor" aria-labelledby="editor-title">
@@ -75,15 +89,20 @@
       <label>Work title<input name="title" maxlength="100" required></label>
       <div class="form-row">
         <label>Status<select name="status" required></select></label>
+        <label>Priority<select name="priority" required></select></label>
+      </div>
+      <div class="form-row">
+        <label>Planned start<input name="start" type="date"></label>
         <label>Target date<input name="due" type="date"></label>
       </div>
       <div class="form-row">
         <label>Assigned to<input name="owner" maxlength="80"></label>
         <label>Measured quantity<input name="quantity" maxlength="80" placeholder="e.g. 4.36 m²"></label>
       </div>
+      <label>Blocker or dependency<input name="blocker" maxlength="240" placeholder="e.g. Site measure before fabrication"></label>
       <label>Scope and site notes<textarea name="notes" rows="3" maxlength="2500"></textarea></label>
       <p id="form-error" role="alert" hidden></p>
-      <div class="form-actions"><button id="delete-work" type="button" hidden>Remove pin</button><button id="close-editor" type="button">Cancel</button><button class="primary" type="submit">Save work</button></div>
+      <div class="form-actions"><button id="delete-work" type="button" hidden>Remove pin</button><button id="move-pin" type="button" hidden>Move pin</button><button id="close-editor" type="button">Cancel</button><button class="primary" type="submit">Save work</button></div>
     </form>
   </dialog>
   <script type="module" src="/src/main.js"></script>

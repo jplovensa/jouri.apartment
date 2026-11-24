@@ -30,7 +30,13 @@ function validate(input) {
     data[key] = input[key].trim();
   }
   if (!data.title) return null;
-  if (data.due && !/^\d{4}-\d{2}-\d{2}$/.test(data.due)) return null;
+  const date = /^\d{4}-\d{2}-\d{2}$/;
+  if (data.due && !date.test(data.due)) return null;
+  if (input.start && (typeof input.start !== 'string' || !date.test(input.start))) return null;
+  if (input.start && data.due && input.start > data.due) return null;
+  if (input.priority && !PRIORITIES.includes(input.priority)) return null;
+  if (input.blocker && (typeof input.blocker !== 'string' || input.blocker.length > 240)) return null;
+  Object.assign(data, { priority: input.priority || 'Normal', start: input.start || '', blocker: input.blocker || '' });
   return data;
 }
 

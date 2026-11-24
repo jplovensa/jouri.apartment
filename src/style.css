@@ -140,3 +140,65 @@ dialog h2, dialog p { margin: 0; }
  .handoff { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 14px; color: var(--muted); font-size: .82rem; }
 .handoff button, #delete-work { min-height: 38px; border: 1px solid var(--line); background: #f1efe8; border-radius: 6px; padding: 0 10px; }
 #delete-work { margin-right: auto; color: #852f25; }
+.wall-toolbar {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  padding: 6px 12px; border-bottom: 1px solid var(--line);
+}
+.wall-toolbar button {
+  border: 1px solid var(--line); background: transparent; border-radius: 6px;
+  padding: 5px 9px; min-height: 32px; font-size: .78rem;
+}
+.wall-toolbar button[aria-pressed=true] { background: #e0e8df; border-color: #9daf9d; color: #274735; }
+.wall-toolbar a { margin-left: auto; color: var(--muted); font-size: .76rem; text-underline-offset: 2px; }
+.asset-status {
+  margin: 0; position: absolute; bottom: 12px; left: 12px;
+  padding: 5px 10px; border-radius: 5px; background: #faf9f4e6; font-size: .78rem;
+}
+#focus-room { min-height: 36px; width: 100%; margin-top: 7px; border-radius: 6px; border: 1px solid var(--line); background: #f2f3eb; font-size: .82rem; }
+.totals { grid-template-columns: repeat(6,minmax(0,1fr)); }
+.filters { grid-template-columns: minmax(95px,1fr) minmax(100px,1fr) minmax(170px,1.25fr); }
+.work-views { display: flex; flex-wrap: wrap; margin-top: 15px; gap: 5px; }
+.work-views button, #move-pin {
+  min-height: 38px; border: 1px solid var(--line); background: transparent;
+  padding: 0 10px; border-radius: 6px; font-size: .87rem;
+}
+.work-views button[aria-pressed=true] { border-color: var(--accent); background: var(--accent); color: white; }
+.advanced-entry { grid-template-columns: minmax(0,1fr) auto; padding-inline: 8px; }
+.entry-main { min-width: 0; }
+.item-meta { display: flex; flex-wrap: wrap; gap: 3px 10px; margin-top: 3px; font-size: .8rem; color: var(--muted); }
+.item-meta .blocker { color: #8a4a34; }
+.item-meta .overdue { color: #922d25; font-weight: 700; }
+.work-tags { display: flex; flex-wrap: wrap; gap: 4px; justify-content: end; min-width: 0; }
+.work-badge { border-radius: 20px; padding: 3px 7px; background: #e8ede4; color: #345040; font-size: .73rem; white-space: nowrap; }
+.work-badge[data-kind="Survey needed"] { background: #f3e9d8; color: #774c15; }
+.work-badge[data-kind="In progress"] { background: #e0ebef; color: #315e77; }
+.work-badge[data-kind="Blocked"], .work-badge[data-kind="Urgent"] { background: #f5e2db; color: #893f31; }
+.work-badge[data-kind="High"] { background: #f6eadb; color: #7e4718; }
+.work-board { display: grid; grid-template-columns: repeat(5,minmax(190px,1fr)); gap: 8px; overflow: auto; margin-top: 9px; padding-bottom: 6px; }
+.work-column { background: #f5f3ec; border: 1px solid var(--line); border-radius: 8px; padding: 10px; }
+.column-title { display: flex; justify-content: space-between; align-items: center; margin: 0 0 8px; gap: 4px; font-size: .9rem; }
+.column-count { background: #e9e8de; color: var(--muted); border-radius: 20px; min-width: 24px; text-align: center; padding: 2px 5px; font-size: .75rem; }
+.column-list { padding: 0; margin: 0; list-style: none; display: grid; gap: 6px; }
+.board-card {
+  width: 100%; text-align: left; border: 1px solid var(--line); border-radius: 6px;
+  padding: 8px; background: #faf9f5; font-size: .85rem;
+}
+.board-card:hover, .room-progress-card:hover { background: #e9ede3; }
+.board-card .work-tags { justify-content: start; margin-top: 4px; }
+.work-schedule { display: grid; gap: 8px; margin-top: 9px; }
+.work-schedule .work-column[data-kind="Overdue"] .column-title { color: #922d25; }
+.room-progress { display: grid; grid-template-columns: repeat(auto-fit,minmax(145px,1fr)); gap: 8px; margin-top: 9px; }
+.room-progress-card {
+  border: 1px solid var(--line); border-radius: 8px; background: #f5f3ec;
+  display: grid; gap: 5px; text-align: left; padding: 10px; font-size: .88rem;
+}
+.room-progress-card progress { width: 100%; height: 8px; accent-color: #2d4939; }
+.room-progress-card small, .empty-work { color: var(--muted); font-size: .8rem; }
+.empty-work { margin: 5px 0; }
+@media (max-width: 680px) {
+  .totals { grid-template-columns: repeat(3,minmax(0,1fr)); }
+  .filters { grid-template-columns: 1fr 1fr; width: 100%; }
+  .filters label:last-child { grid-column: 1 / -1; }
+  .advanced-entry { grid-template-columns: minmax(0,1fr) auto; }
+  .form-actions { gap: 5px; flex-wrap: wrap; }
+}

@@ -1,7 +1,8 @@
-import { ROOM_NAMES, SCOPES, SEED_WORK, STATUSES } from './work-data.js';
+import { ROOM_NAMES, SCOPES, SEED_WORK, STATUSES, PRIORITIES } from './work-data.js';
 
 const key = 'secha-jouri-renovation-register-v1';
 export const DATA_FORMAT = 'jouri-apartment-work-register';
+const datePattern = /^\d{4}-\d{2}-\d{2}$/;
 const limits = { title: 100, notes: 2500, owner: 80, quantity: 80, due: 10 };
 
 function inRoom(plan, x, z, room) {
@@ -20,7 +21,11 @@ function valid(plan, row) {
     && STATUSES.includes(row.status) && Number.isFinite(row.x) && Number.isFinite(row.z)
     && inRoom(plan, row.x, row.z, row.room)
     && Object.entries(limits).every(([field, max]) => typeof row[field] === 'string' && row[field].length <= max)
-    && row.title.trim().length > 0 && (!row.due || /^\d{4}-\d{2}-\d{2}$/.test(row.due));
+    && row.title.trim().length > 0 && (!row.due || datePattern.test(row.due))
+    && (row.priority === undefined || PRIORITIES.includes(row.priority))
+    && (!row.start || (typeof row.start === 'string' && datePattern.test(row.start)))
+    && (!row.start || !row.due || row.start <= row.due)
+    && (row.blocker === undefined || (typeof row.blocker === 'string' && row.blocker.length <= 240));
 }
 
 function validSaved(plan, row) {

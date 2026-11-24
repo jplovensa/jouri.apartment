@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import plan from './plan.json' with { type: 'json' };
-import { furnish } from './furnishings.js';
+import { loadFurnishings } from './furnishings.js';
 import { CLOSET, RACK_FRONT, RAIL_END, makeWardrobe } from './wardrobe.js';
 
 export const APARTMENT_PLAN = plan;
@@ -16,8 +16,9 @@ export const ROOMS = {
 };
 
 const material = (color) => new THREE.MeshStandardMaterial({ color, roughness: .88 });
-const wallSurface = material('#f3f0e6');
-const wallCap = material('#dedbd1');
+// Jotun 0471 Light Antique. The material is an on-screen approximation.
+const wallSurface = material('#eae2da');
+const wallCap = material('#eae2da');
 const slabEdge = material('#8e8980');
 const selected = new THREE.Color('#adc2a4');
 
@@ -41,10 +42,11 @@ function floor(points, surface) {
   return mesh;
 }
 
-function addWall(group, [x1, z1, x2, z2], height = .43) {
+function addWall(group, [x1, z1, x2, z2], height = CLOSET.height) {
   const length = Math.hypot(x2 - x1, z2 - z1);
   const wall = box(length, height, .13, (x1 + x2) / 2, height / 2, (z1 + z2) / 2,
     [wallSurface, wallSurface, wallCap, wallSurface, wallSurface, wallSurface]);
+  wall.receiveShadow = true;
   wall.rotation.y = -Math.atan2(z2 - z1, x2 - x1);
   group.add(wall);
 }
@@ -53,6 +55,7 @@ export function makeApartment() {
   const root = new THREE.Group();
   const shell = new THREE.Group();
   const fixtures = new THREE.Group();
+  const walls = new THREE.Group();
   const closet = makeWardrobe(box, plan.wardrobe, material);
   const closetShell = new THREE.Group();
   const clearance = new THREE.Group();
@@ -78,7 +81,7 @@ export function makeApartment() {
   const { width, depth } = CLOSET;
 
   for (const segment of [[0, 0, width, 0], [0, 0, 0, depth], [width, 0, width, depth]]) {
-    addWall(closetShell, segment, .29);
+    addWall(closetShell, segment);
   }
   closetShell.position.copy(closet.position);
   closetShell.rotation.copy(closet.rotation);
@@ -90,14 +93,15 @@ export function makeApartment() {
       : points;
     const mesh = floor(exactPoints, material(room.color));
     mesh.userData.room = id;
+    mesh.receiveShadow = true;
     shell.add(mesh);
     floors.set(id, mesh);
   }
   const recessSurface = material('#b49a7d');
   for (const points of plan.recesses) shell.add(floor(points, recessSurface));
   // Original trace retains the short entrance pocket. Its wall lengths are approximate.
-  for (const wall of plan.walls) addWall(shell, wall);
-  furnish(fixtures, box, material);
+  for (const wall of plan.walls) addWall(walls, wall);
+  shell.add(walls);
   root.add(shell, fixtures, closet, closetShell);
   closetShell.visible = false;
   const overviewBounds = new THREE.Box3().setFromObject(root);
@@ -109,12 +113,31 @@ export function makeApartment() {
   const detailFloorGroup = new THREE.Group();
   detailFloorGroup.position.copy(closet.position);
   detailFloorGroup.rotation.copy(closet.rotation);
+  detailFloor.receiveShadow = true;
   detailFloorGroup.add(detailFloor);
   detailFloorGroup.visible = false;
   root.add(detailFloorGroup, clearance);
   return {
     root, floors, overviewBounds, detailBounds,
+    async loadFurniture() {
+      const failures = await loadFurnishings(fixtures);
+      let teakMap;
+      fixtures.traverse((node) => {
+        if (node.isMesh && node.material?.name?.includes('Baltimore teak')) teakMap = node.material.map;
+      });
+      if (teakMap) closet.traverse((node) => {
+        if (node.material?.name !== 'Closet teak') return;
+        node.material.map = teakMap;
+        node.material.color.set('#ffffff');
+        node.material.needsUpdate = true;
+      });
+      return failures;
+    },
     showFurniture(visible) { fixtures.visible = visible; },
+    showWalls(visible, closetView) {
+      walls.visible = visible && !closetView;
+      closetShell.visible = visible && closetView;
+    },
     focusCloset(isDetail, showClearance = false) {
       shell.visible = fixtures.visible = !isDetail;
       closetShell.visible = detailFloorGroup.visible = isDetail;

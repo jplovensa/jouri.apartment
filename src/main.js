@@ -7,10 +7,13 @@ import './style.css';
 const $ = (id) => document.getElementById(id);
 const viewport = $('viewport');
 const viewButtons = [...document.querySelectorAll('[data-view]')];
+const wallButtons = [...document.querySelectorAll('[data-walls]')];
 const roomButtons = new Map();
 const labels = new Map();
 let selection = null;
 let view = 'orbit';
+let wallsVisible = false;
+let focusedRoom = null;
 let sceneView;
 let portal;
 
@@ -56,6 +59,7 @@ $('next-reference').addEventListener('click', () => {
 
 function selectRoom(id) {
   selection = id;
+  $('focus-room').hidden = !id || id === 'wic' || !sceneView;
   referenceIndex = 0;
   renderReference();
   $('room-title').textContent = ROOMS[id]?.name ?? 'Apartment overview';
@@ -75,6 +79,7 @@ const isPlanView = () => view === 'plan' || view === 'wic-plan';
 function setView(next) {
   portal?.cancelPlacement();
   view = next;
+  focusedRoom = null;
   if (isClosetView()) selectRoom('wic');
   for (const button of viewButtons) button.setAttribute('aria-pressed', String(button.dataset.view === view));
   $('controls-hint').textContent = isPlanView()
@@ -106,6 +111,18 @@ for (const [id, { name, color }] of Object.entries(ROOMS)) {
 
 for (const [name, detail] of JOINERY) $('joinery').append(element('dt', name), element('dd', detail));
 for (const button of viewButtons) button.addEventListener('click', () => setView(button.dataset.view));
+$('focus-room').addEventListener('click', () => {
+  if (!selection || selection === 'wic') return;
+  setView('orbit');
+  focusedRoom = selection;
+  sceneView?.frame();
+});
+for (const button of wallButtons) button.addEventListener('click', () => {
+  wallsVisible = button.dataset.walls === 'on';
+  for (const option of wallButtons) option.setAttribute('aria-pressed', String(option === button));
+  sceneView?.model.showWalls(wallsVisible, isClosetView());
+  sceneView?.render();
+});
 $('reset').addEventListener('click', () => {
   if (!isClosetView()) selectRoom(null);
   setView(view);
@@ -115,6 +132,9 @@ function initialise() {
   const renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setClearColor('#eae8df');
   renderer.toneMapping = THREE.NeutralToneMapping;
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFShadowMap;
+  renderer.shadowMap.autoUpdate = false;
   const canvas = renderer.domElement;
   canvas.setAttribute('aria-label', '3D apartment floor plan. Choose a room using the room list.');
   canvas.setAttribute('role', 'img');
@@ -124,10 +144,17 @@ function initialise() {
   const scene = new THREE.Scene();
   const model = makeApartment();
   scene.add(model.root);
-  scene.add(new THREE.HemisphereLight('#fffaf1', '#b9b4a1', 2.35));
-  const sun = new THREE.DirectionalLight('#fff4e1', 1.85);
-  sun.position.set(-6, 13, -5);
-  scene.add(sun);
+  scene.add(new THREE.HemisphereLight('#fff8ed', '#a59e93', 1.72));
+  const sun = new THREE.DirectionalLight('#fff5e9', 2.05);
+  sun.position.set(-6, 15, 1.8);
+  sun.target.position.set(3, 0, 5.5);
+  sun.castShadow = true;
+  const shadow = sun.shadow;
+  Object.assign(shadow.camera, { left: -7.5, right: 7.5, top: 8, bottom: -8, near: .5, far: 40 });
+  shadow.camera.updateProjectionMatrix();
+  shadow.mapSize.set(1536, 1536);
+  shadow.normalBias = .017;
+  scene.add(sun, sun.target);
   const controls = new OrbitControls(camera, canvas);
   controls.minZoom = .55;
   controls.maxZoom = 4;
@@ -165,7 +192,13 @@ function initialise() {
     const top = isPlanView();
     model.focusCloset(detail, view === 'wic-plan');
     model.showFurniture(view === 'orbit');
-    const bounds = detail ? model.detailBounds : model.overviewBounds;
+    model.showWalls(wallsVisible, detail);
+    renderer.shadowMap.needsUpdate = true;
+    const focusFloor = focusedRoom && model.floors.get(focusedRoom);
+    const bounds = detail ? model.detailBounds : focusFloor
+      ? new THREE.Box3().setFromObject(focusFloor).expandByVector(new THREE.Vector3(.30, .12, .30))
+      : model.overviewBounds;
+    if (focusFloor && !detail) bounds.max.y = 1.75;
     const target = bounds.getCenter(new THREE.Vector3());
     const offset = top ? [0, 22, detail ? -.001 : .001] : detail ? [-11, 15, .4] : [-10, 20, -15];
     camera.position.copy(target).add(new THREE.Vector3(...offset));
@@ -222,6 +255,15 @@ function initialise() {
     frame();
   });
   frame();
+  const assetStatus = $('asset-status');
+  assetStatus.hidden = false;
+  assetStatus.textContent = 'Loading furniture assets…';
+  model.loadFurniture().then((failures) => {
+    assetStatus.hidden = failures === 0;
+    assetStatus.textContent = failures ? 'Some furniture could not load. Refresh to retry.' : '';
+    renderer.shadowMap.needsUpdate = true;
+    render();
+  });
   return { model, frame, render };
 }
 
@@ -231,7 +273,7 @@ try {
   console.error('Apartment renderer could not start.', error);
   viewport.querySelector('canvas')?.remove();
   $('fallback').hidden = false;
-  for (const button of [...viewButtons, $('reset')]) button.disabled = true;
+  for (const button of [...viewButtons, ...wallButtons, $('reset')]) button.disabled = true;
 }
 
 import('./portal.js').then(({ makePortal }) => {

@@ -8,6 +8,8 @@ export const ROOM_NAMES = {
   wic: 'Walk-in closet',
 };
 
+export const PRIORITIES = ['Low', 'Normal', 'High', 'Urgent'];
+
 export const STATUSES = ['Planned', 'Survey needed', 'In progress', 'Blocked', 'Complete'];
 
 export const SCOPES = {

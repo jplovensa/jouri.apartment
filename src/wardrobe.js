@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 
 export const CLOSET = { width: 2.022, depth: 2.157, height: 2.61 };
 const RAIL = { offset: .300, leftRun: .757, rearRun: .750, profile: .026 };
@@ -18,8 +19,12 @@ export function makeWardrobe(box, placement, material) {
   root.rotation.y = placement.rotation;
   const { width, depth, height } = CLOSET;
   const teak = material('#9c694a');
+  teak.name = 'Closet teak';
+  teak.roughness = .48;
   const edge = material('#724830');
   const steel = material('#272a26');
+  steel.metalness = .46;
+  steel.roughness = .38;
   const rails = new THREE.Group();
   const drawers = new THREE.Group();
   const rack = new THREE.Group();
@@ -27,11 +32,18 @@ export function makeWardrobe(box, placement, material) {
   drawers.name = 'C01';
   rack.name = 'S01';
   root.add(rails, drawers, rack);
-  const addTo = (group) => (w, h, d, x, y, z, surface = teak) =>
-    group.add(box(w, h, d, x, y, z, surface));
+  const addTo = (group, bevel = 0) => (w, h, d, x, y, z, surface = teak) => {
+    const mesh = bevel
+      ? new THREE.Mesh(new RoundedBoxGeometry(w, h, d, 2, Math.min(w / 4, h / 4, d / 4, bevel)), surface)
+      : box(w, h, d, x, y, z, surface);
+    mesh.position.set(x, y, z);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    group.add(mesh);
+  };
   const addRail = addTo(rails);
-  const addDrawer = addTo(drawers);
-  const addRack = addTo(rack);
+  const addDrawer = addTo(drawers, .006);
+  const addRack = addTo(rack, .003);
 
   for (const y of [1.05, 2]) {
     const { offset, leftRun, rearRun, profile } = RAIL;
@@ -52,7 +64,10 @@ export function makeWardrobe(box, placement, material) {
   for (let i = 0; i < 4; i++) {
     const y = .185 + i * .202;
     addDrawer(.896, .2, .018, drawerX, y, .391);
-    addDrawer(.155, .014, .022, drawerX, y + .036, .411, steel);
+    addDrawer(.145, .011, .014, drawerX, y + .036, .414, steel);
+    for (const x of [drawerX - .061, drawerX + .061]) {
+      addDrawer(.017, .012, .020, x, y + .036, .407, steel);
+    }
   }
 
   const { width: rackWidth, depth: rackDepth } = RACK;

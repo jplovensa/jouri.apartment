@@ -1,5 +1,6 @@
 import { makeLocalRegister } from './local-register.js';
-import { ROOM_NAMES, SCOPES, STATUSES } from './work-data.js';
+import { isOverdue, projectDate, renderWorkView } from './work-views.js';
+import { PRIORITIES, ROOM_NAMES, SCOPES, STATUSES } from './work-data.js';
 
 const $ = (id) => document.getElementById(id);
 const dialog = $('editor');
@@ -7,6 +8,8 @@ const form = $('work-form');
 const fields = form.elements;
 const roomFilter = $('room-filter');
 const statusFilter = $('status-filter');
+const search = $('work-search');
+const viewOptions = [...document.querySelectorAll('[data-register-view]')];
 const placeButton = $('add-pin');
 const viewport = $('viewport');
 
@@ -30,6 +33,8 @@ export function makePortal({ rooms, plan, selectRoom, showPlan, redraw, canPlace
   let drafting = false;
   let editing;
   let point;
+  let movedItem = null;
+  let registerView = 'list';
   let ready = false;
   let saving = false;
   const pins = new Map();
@@ -39,9 +44,27 @@ export function makePortal({ rooms, plan, selectRoom, showPlan, redraw, canPlace
   choices(fields.room, roomEntries);
   choices(fields.scope, Object.entries(SCOPES).map(([code, [label]]) => [code, `${code} · ${label}`]));
   choices(fields.status, STATUSES.map((name) => [name, name]));
+  choices(fields.priority, PRIORITIES.map((name) => [name, name]));
 
-  const filtered = () => items.filter((row) =>
-    (!roomFilter.value || roomFilter.value === row.room) && (!statusFilter.value || statusFilter.value === row.status));
+  function filtered() {
+    const term = search.value.trim().toLocaleLowerCase();
+    return items.filter((row) => (!roomFilter.value || roomFilter.value === row.room)
+      && (!statusFilter.value || statusFilter.value === row.status)
+      && (!term || [row.title, row.scope, row.owner, row.blocker, ROOM_NAMES[row.room]]
+        .some((value) => value?.toLocaleLowerCase().includes(term))));
+  }
+
+  function setRegisterView(mode) {
+    registerView = mode;
+    for (const button of viewOptions) button.setAttribute('aria-pressed', String(button.dataset.registerView === mode));
+    render();
+  }
+
+  function filterRoom(room) {
+    roomFilter.value = room;
+    selectRoom(room);
+    setRegisterView('list');
+  }
 
   function notice(text) { $('portal-message').textContent = text; }
   function setDrafting(active) {
@@ -61,16 +84,18 @@ export function makePortal({ rooms, plan, selectRoom, showPlan, redraw, canPlace
     $('form-error').hidden = true;
     form.reset();
     editing = row;
-    const room = row?.room ?? placement?.room ?? currentRoom() ?? 'living';
-    point = row ? { x: row.x, z: row.z, exact: true }
-      : placement ? { ...placement, exact: true } : { x: rooms[room].label[0], z: rooms[room].label[1], exact: false };
+    const room = placement?.room ?? row?.room ?? currentRoom() ?? 'living';
+    point = placement ? { ...placement, exact: true }
+      : row ? { x: row.x, z: row.z, exact: true } : { x: rooms[room].label[0], z: rooms[room].label[1], exact: false };
     fields.room.value = room;
     fields.scope.value = row?.scope ?? 'Other';
     fields.status.value = row?.status ?? 'Planned';
-    for (const key of ['title', 'notes', 'owner', 'quantity', 'due']) fields[key].value = row?.[key] ?? '';
+    fields.priority.value = row?.priority ?? 'Normal';
+    for (const key of ['title', 'notes', 'owner', 'quantity', 'start', 'due', 'blocker']) fields[key].value = row?.[key] ?? '';
     $('editor-title').textContent = row ? 'Edit work pin' : 'New work pin';
     showLocation();
     $('delete-work').hidden = !register || !row || Boolean(row.source);
+    $('move-pin').hidden = !row || !canPlace();
     dialog.showModal();
   }
 
@@ -80,10 +105,13 @@ export function makePortal({ rooms, plan, selectRoom, showPlan, redraw, canPlace
   }
 
   function render() {
+    const today = projectDate();
     const totals = [
       ['Work items', items.length],
       ['Survey needed', items.filter((row) => row.status === 'Survey needed').length],
       ['In progress', items.filter((row) => row.status === 'In progress').length],
+      ['Blocked', items.filter((row) => row.status === 'Blocked').length],
+      ['Overdue', items.filter((row) => isOverdue(row, today)).length],
       ['Complete', items.filter((row) => row.status === 'Complete').length],
     ];
     $('totals').replaceChildren(...totals.map(([label, count]) => {
@@ -92,22 +120,11 @@ export function makePortal({ rooms, plan, selectRoom, showPlan, redraw, canPlace
       node.append(make('strong', count), make('span', label));
       return node;
     }));
-    const list = $('work-list');
-    list.replaceChildren();
     $('map-pins').replaceChildren();
     pins.clear();
     const result = filtered();
+    if (ready) renderWorkView($('work-view'), registerView, result, openItem, filterRoom);
     for (const row of result) {
-      const li = make('li');
-      const entry = make('button');
-      entry.type = 'button';
-      entry.className = 'work-entry';
-      const work = make('div');
-      work.append(make('strong', row.title), make('span', row.scope + (row.due ? ` · Due ${row.due}` : '')));
-      entry.append(work, make('span', ROOM_NAMES[row.room]), make('span', row.status));
-      entry.addEventListener('click', () => openItem(row));
-      li.append(entry);
-      list.append(li);
       const marker = make('button', row.scope === 'Other' ? '•' : row.scope.replace('M0', ''));
       marker.className = 'pin';
       marker.type = 'button';
@@ -119,7 +136,6 @@ export function makePortal({ rooms, plan, selectRoom, showPlan, redraw, canPlace
       $('map-pins').append(marker);
       pins.set(row.id, [row, marker]);
     }
-    if (ready && !result.length) list.append(make('li', 'No work items match these filters.'));
     redraw();
   }
 
@@ -143,20 +159,34 @@ export function makePortal({ rooms, plan, selectRoom, showPlan, redraw, canPlace
 
   roomFilter.addEventListener('change', render);
   statusFilter.addEventListener('change', render);
+  search.addEventListener('input', render);
+  for (const button of viewOptions) button.addEventListener('click', () => setRegisterView(button.dataset.registerView));
+  function cancelPlacement() {
+    movedItem = null;
+    if (drafting) setDrafting(false);
+  }
   placeButton.addEventListener('click', () => {
-    if (drafting) { setDrafting(false); return; }
+    if (drafting) { cancelPlacement(); return; }
     if (!canPlace()) { openEditor(null); return; }
     showPlan();
     setDrafting(true);
   });
   document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && drafting) setDrafting(false);
+    if (event.key === 'Escape' && drafting) cancelPlacement();
   });
   placeButton.addEventListener('keydown', (event) => {
     if (event.key !== 'Enter' && event.key !== ' ') return;
     if (drafting) return;
     event.preventDefault();
     openEditor(null);
+  });
+  $('move-pin').addEventListener('click', () => {
+    if (!editing || saving) return;
+    const draft = { ...editing, ...Object.fromEntries(new FormData(form)) };
+    dialog.close();
+    showPlan();
+    movedItem = draft;
+    setDrafting(true);
   });
   $('close-editor').addEventListener('click', () => { if (!saving) dialog.close(); });
   dialog.addEventListener('cancel', (event) => { if (saving) event.preventDefault(); });
@@ -179,6 +209,7 @@ export function makePortal({ rooms, plan, selectRoom, showPlan, redraw, canPlace
     submit.textContent = 'Saving…';
     try {
       const data = Object.fromEntries(new FormData(form));
+      if (data.start && data.due && data.start > data.due) throw new Error('Target date must follow the planned start.');
       Object.assign(data, { x: point.x, z: point.z, revision: editing?.revision });
       let result;
       if (register) result = { item: register.save(data, editing) };
@@ -257,10 +288,11 @@ export function makePortal({ rooms, plan, selectRoom, showPlan, redraw, canPlace
       if (!drafting) return false;
       selectRoom(room);
       setDrafting(false);
-      openEditor(null, { room, x, z });
+      openEditor(movedItem, { room, x, z });
+      movedItem = null;
       return true;
     },
-    cancelPlacement() { if (drafting) setDrafting(false); },
+    cancelPlacement,
     renderPins(project, visibleRoom) {
       for (const [row, marker] of pins.values()) {
         const position = project(row.x, row.z);
