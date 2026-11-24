@@ -14,6 +14,7 @@ const labels = new Map();
 let selection = null;
 let view = 'orbit';
 let wallsVisible = false;
+let interiorWallsVisible = true;
 let focusedRoom = null;
 let sceneView;
 let portal;
@@ -25,7 +26,7 @@ function element(tag, content) {
 }
 
 const interiorShots = {
-  master: [[3.32, 1.35, 2.90], [1.91, .67, .96]],
+  master: [[3.28, 1.47, 2.95], [1.91, .72, .96]],
   work: [[1.44, 1.27, 8.16], [2.85, .65, 9.85]],
   bath: [[4.17, 1.36, 1.99], [5.13, .85, .92]],
   kitchen: [[4.06, 1.46, 4.20], [5.87, 1.03, 3.33]],
@@ -137,10 +138,17 @@ $('focus-doors').addEventListener('click', () => {
   sceneView?.frame();
   viewport.scrollIntoView({ block: 'center' });
 });
+function updateWallVisibility(model) {
+  const isInterior = Boolean(interiorShots[focusedRoom]);
+  const visible = isInterior ? interiorWallsVisible : wallsVisible;
+  for (const option of wallButtons) option.setAttribute('aria-pressed', String(visible === (option.dataset.walls === 'on')));
+  model?.showWalls(visible, isClosetView(), isInterior ? focusedRoom : undefined);
+}
+
 for (const button of wallButtons) button.addEventListener('click', () => {
-  wallsVisible = button.dataset.walls === 'on';
-  for (const option of wallButtons) option.setAttribute('aria-pressed', String(option === button));
-  sceneView?.model.showWalls(wallsVisible, isClosetView());
+  if (interiorShots[focusedRoom]) interiorWallsVisible = button.dataset.walls === 'on';
+  else wallsVisible = button.dataset.walls === 'on';
+  updateWallVisibility(sceneView?.model);
   sceneView?.render();
 });
 $('reset').addEventListener('click', () => {
@@ -185,10 +193,13 @@ function initialise() {
   shadow.normalBias = .011;
   shadow.radius = 2.7;
   scene.add(sun, sun.target);
-  const lampPositions = [[5.56, 1.33, 3.45], [2.32, .69, .28], [2.27, 1.73, 3.22], [4.42, 1.36, .51]];
-  for (const position of lampPositions) {
-    const bounce = new THREE.PointLight('#ffcf9d', 3.1, 1.4, 2);
-    bounce.position.set(...position);
+  const lampPositions = [
+    [5.56, 1.33, 3.45, 1.3], [1.69, .70, .24, .24], [2.28, .69, .24, .33],
+    [2.90, .70, .24, .24], [2.27, 1.73, 3.22, 1.15], [4.42, 1.36, .51, .88],
+  ];
+  for (const [x, y, z, intensity] of lampPositions) {
+    const bounce = new THREE.PointLight('#ffcf9d', intensity, 1.2, 2);
+    bounce.position.set(x, y, z);
     scene.add(bounce);
   }
   const controls = new OrbitControls(camera, canvas);
@@ -233,8 +244,8 @@ function initialise() {
     const top = isPlanView();
     const shot = interiorShots[focusedRoom];
     model.focusCloset(detail, view === 'wic-plan');
-    model.showFurniture(view === 'orbit', focusedRoom === 'doors');
-    model.showWalls(wallsVisible, detail);
+    model.showFurniture(view === 'orbit', focusedRoom);
+    updateWallVisibility(model);
     renderer.shadowMap.needsUpdate = true;
     model.highlight(selection, Boolean(shot));
     controls.enableRotate = !top;
@@ -250,7 +261,7 @@ function initialise() {
       controls.target.set(...target);
       camera.updateProjectionMatrix();
       controls.update();
-      renderer.toneMappingExposure = 1.23;
+      renderer.toneMappingExposure = 1.06;
       render();
       return;
     }

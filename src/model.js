@@ -20,6 +20,8 @@ const material = (color) => new THREE.MeshStandardMaterial({ color, roughness: .
 // Jotun 0471 Light Antique. The material is an on-screen approximation.
 const wallSurface = material('#eae2da');
 const wallCap = material('#eae2da');
+const ceilingPaint = material('#f1ede7');
+const skirtingPaint = material('#ded8cd');
 const slabEdge = material('#8e8980');
 const selected = new THREE.Color('#adc2a4');
 
@@ -50,13 +52,19 @@ function addWall(group, [x1, z1, x2, z2], height = CLOSET.height) {
   wall.receiveShadow = true;
   wall.rotation.y = -Math.atan2(z2 - z1, x2 - x1);
   group.add(wall);
+  const skirting = box(length, .060, .151, wall.position.x, .03, wall.position.z, skirtingPaint);
+  skirting.rotation.y = wall.rotation.y;
+  skirting.receiveShadow = true;
+  group.add(skirting);
 }
 
 export function makeApartment() {
   const root = new THREE.Group();
   const shell = new THREE.Group();
   const fixtures = new THREE.Group();
-  let doorFocus = false;
+  let furnitureFocus;
+  const ceilings = new Map();
+  const fixturePacks = { master: 'bedroom', work: 'work', bath: 'bath', living: 'social', kitchen: 'social', dining: 'social' };
   const walls = new THREE.Group();
   const closet = makeWardrobe(box, plan.wardrobe, material);
   paintFinish(wallSurface);
@@ -104,6 +112,13 @@ export function makeApartment() {
     mesh.receiveShadow = true;
     shell.add(mesh);
     floors.set(id, mesh);
+    if (id !== 'wic') {
+      const ceiling = floor(exactPoints, ceilingPaint);
+      ceiling.position.y = CLOSET.height;
+      ceiling.visible = false;
+      shell.add(ceiling);
+      ceilings.set(id, ceiling);
+    }
   }
   const recessSurface = material('#b49a7d');
   for (const points of plan.recesses) shell.add(floor(points, recessSurface));
@@ -128,8 +143,11 @@ export function makeApartment() {
   detailFloorGroup.visible = false;
   root.add(detailFloorGroup, clearance);
   function applyFurnitureFocus() {
-    for (const scene of fixtures.children) scene.visible = !doorFocus || scene.name === 'doors';
-    closet.visible = !doorFocus;
+    const pack = furnitureFocus === 'doors' ? 'doors' : fixturePacks[furnitureFocus];
+    for (const scene of fixtures.children) {
+      scene.visible = !pack || scene.name === pack || (pack === 'social' && scene.name === 'doors');
+    }
+    closet.visible = !furnitureFocus;
   }
   return {
     root, floors, overviewBounds, detailBounds,
@@ -148,14 +166,15 @@ export function makeApartment() {
       });
       return failures;
     },
-    showFurniture(visible, inspectDoors = false) {
+    showFurniture(visible, focus) {
       fixtures.visible = visible;
-      doorFocus = inspectDoors;
+      furnitureFocus = focus;
       applyFurnitureFocus();
     },
-    showWalls(visible, closetView) {
+    showWalls(visible, closetView, roomView) {
       walls.visible = visible && !closetView;
       closetShell.visible = visible && closetView;
+      for (const [room, ceiling] of ceilings) ceiling.visible = visible && room === roomView;
     },
     focusCloset(isDetail, showClearance = false) {
       shell.visible = fixtures.visible = !isDetail;
