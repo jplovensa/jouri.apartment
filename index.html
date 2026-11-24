@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#f5f3ee">
+    <title>Jouri Apartment · SECHA Studio+</title>
+  </head>
+  <body>
+    <header class="masthead">
+      <span class="wordmark">SECHA STUDIO+</span>
+      <span class="status">Coordination model</span>
+    </header>
+    <main>
+      <div class="intro">
+        <h1>Jouri Apartment</h1>
+        <p>Explore the apartment floor plan and the SD-01 walk-in closet.</p>
+      </div>
+      <div class="layout">
+        <section class="viewer" aria-label="Interactive apartment model">
+          <div class="toolbar" aria-label="Model view">
+            <button type="button" data-view="orbit" aria-pressed="true">3D view</button>
+            <button type="button" data-view="plan" aria-pressed="false">Floor plan</button>
+            <button type="button" data-view="wic" aria-pressed="false">Closet detail</button>
+          </div>
+          <div id="viewport" class="viewport">
+            <div id="labels" class="labels" aria-hidden="true"></div>
+            <p id="fallback" hidden>WebGL is unavailable. The room list and drawing notes are still available.</p>
+          </div>
+          <div class="viewport-footer">
+            <span id="controls-hint">Drag to orbit · Scroll or pinch to zoom</span>
+            <button id="reset" type="button">Reset view</button>
+          </div>
+        </section>
+        <aside class="sidebar">
+          <h2>Rooms</h2>
+          <div id="rooms" class="room-list" aria-label="Select a room"></div>
+          <section class="details" aria-live="polite">
+            <h2 id="room-title">Apartment overview</h2>
+            <p id="room-note">Select a room in the model or the list to see its drawing notes.</p>
+            <dl id="joinery" hidden></dl>
+          </section>
+          <p class="source">Based on Interiola’s Layout Desain and SECHA Studio+ SD-01. Verify dimensions and openings on site.</p>
+        </aside>
+      </div>
+    </main>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
