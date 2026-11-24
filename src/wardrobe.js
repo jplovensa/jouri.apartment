@@ -2,13 +2,15 @@ import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 
 export const CLOSET = { width: 2.022, depth: 2.157, height: 2.61 };
-const RAIL = { offset: .300, leftRun: .757, rearRun: .750, profile: .026 };
+const RAIL = { offset: .300, leftRun: .957, rearRun: .750, profile: .026 };
 const RACK = { width: 1.216, depth: .350 };
 export const RAIL_END = RAIL.offset + RAIL.leftRun;
 export const RACK_FRONT = CLOSET.depth - RACK.depth;
 export const RAIL_CLEARANCE_MM = Math.round((RACK_FRONT - RAIL_END) * 1000);
+export const GARMENT_ALLOWANCE_MM = 100;
+export const STANDING_DEPTH_MM = RAIL_CLEARANCE_MM - GARMENT_ALLOWANCE_MM;
 export const JOINERY = [
-  ['H01 · Double L rail', 'Left wall and rear return. Proposed left run 757 mm, rear return 750 mm. Rail levels at 1,050 and 2,000 mm above floor.'],
+  ['H01 · Double L rail', 'Left wall and rear return. Proposed left run 957 mm, rear return 750 mm. Rail levels at 1,050 and 2,000 mm above floor.'],
   ['C01 · Four-drawer cabinet', 'Rear right. 900 × 400 × 900 mm.'],
   ['S01 · Open shoe rack', 'Left of the entrance. 1,216 × 350 × 2,610 mm. Nine levels per column.'],
 ];
@@ -53,7 +55,7 @@ export function makeWardrobe(box, placement, material) {
       (offset - halfProfile + RAIL_END) / 2, steel);
     addRail(rearRun - halfProfile, profile, profile,
       offset + (rearRun + halfProfile) / 2, y, offset, steel);
-    for (const z of [.355, .66, .97]) addRail(offset - halfProfile, .022, .022,
+    for (const z of [.355, .75, 1.16]) addRail(offset - halfProfile, .022, .022,
       (offset - halfProfile) / 2, y, z, steel);
     addRail(.022, .022, offset - halfProfile, 1.01, y, (offset - halfProfile) / 2, steel);
   }

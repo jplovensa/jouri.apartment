@@ -51,6 +51,7 @@
             <img id="reference-image" src="./references/apartment.webp" alt="Interiola apartment axonometric">
           </a>
           <button id="focus-room" type="button" hidden>Focus on room</button>
+          <button id="focus-doors" type="button" hidden>Inspect concealed doors</button>
           <div class="reference-footer"><span>Interiola · design reference</span><button id="next-reference" type="button" hidden>Next view</button></div>
         </section>
       </aside>
@@ -70,11 +71,16 @@
         <button type="button" data-register-view="schedule" aria-pressed="false">Schedule</button>
         <button type="button" data-register-view="rooms" aria-pressed="false">Room progress</button>
       </div>
+      <div id="pdf-controls" class="handoff">
+        <button id="export-work-pdf" type="button" disabled>Export work PDF</button>
+        <button id="export-status-card" type="button" disabled>Export status card</button>
+        <span>PDFs use the active register filters.</span>
+      </div>
       <div id="handoff-controls" class="handoff" hidden>
-        <button id="export-work" type="button">Export work</button>
-        <button id="import-work" type="button">Import work</button>
+        <button id="export-work" type="button">Export transfer data</button>
+        <button id="import-work" type="button">Import transfer data</button>
         <input id="import-file" type="file" accept=".json,application/json" hidden>
-        <span>Saved on this browser. Export and import to hand off changes.</span>
+        <span>Transfer data keeps pins editable when shared with another browser.</span>
       </div>
       <p id="portal-message" role="status" aria-live="polite">Loading saved work…</p>
       <div id="work-view"></div>
@@ -102,7 +108,7 @@
       <label>Blocker or dependency<input name="blocker" maxlength="240" placeholder="e.g. Site measure before fabrication"></label>
       <label>Scope and site notes<textarea name="notes" rows="3" maxlength="2500"></textarea></label>
       <p id="form-error" role="alert" hidden></p>
-      <div class="form-actions"><button id="delete-work" type="button" hidden>Remove pin</button><button id="move-pin" type="button" hidden>Move pin</button><button id="close-editor" type="button">Cancel</button><button class="primary" type="submit">Save work</button></div>
+      <div class="form-actions"><button id="delete-work" type="button" hidden>Remove pin</button><button id="move-pin" type="button" hidden>Move pin</button><button id="pin-card" type="button" hidden>Download pin card</button><button id="close-editor" type="button">Cancel</button><button class="primary" type="submit">Save work</button></div>
     </form>
   </dialog>
   <script type="module" src="/src/main.js"></script>

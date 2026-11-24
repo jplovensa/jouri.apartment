@@ -97,6 +97,7 @@ export function makePortal({ rooms, plan, selectRoom, showPlan, redraw, canPlace
     showLocation();
     $('delete-work').hidden = !register || !row || Boolean(row.source);
     $('move-pin').hidden = !row || !canPlace();
+    $('pin-card').hidden = !row;
     dialog.showModal();
   }
 
@@ -151,6 +152,8 @@ export function makePortal({ rooms, plan, selectRoom, showPlan, redraw, canPlace
       }
       ready = true;
       placeButton.disabled = false;
+      $('export-work-pdf').disabled = false;
+      $('export-status-card').disabled = false;
       notice('');
       render();
     } catch (error) {
@@ -238,6 +241,33 @@ export function makePortal({ rooms, plan, selectRoom, showPlan, redraw, canPlace
       submit.disabled = false;
       submit.textContent = 'Save work';
     }
+  });
+
+  async function downloadPdf(button, kind, row) {
+    button.disabled = true;
+    try {
+      const { exportWorkPdf } = await import('./work-pdf.js');
+      const room = row?.room ?? roomFilter.value;
+      const filter = row ? row.title : [ROOM_NAMES[room], statusFilter.value, search.value.trim()].filter(Boolean).join(' / ');
+      await exportWorkPdf({ kind, plan, rooms, room, filter, single: Boolean(row), rows: row ? [row] : filtered() });
+      if (!row) notice('PDF downloaded.');
+    } catch (error) {
+      const message = 'Could not generate the PDF. Check the connection and retry.';
+      console.error(error);
+      if (row) {
+        $('form-error').textContent = message;
+        $('form-error').hidden = false;
+      } else notice(message);
+    } finally {
+      button.disabled = false;
+    }
+  }
+
+  $('export-work-pdf').addEventListener('click', (event) => downloadPdf(event.currentTarget, 'report'));
+  $('export-status-card').addEventListener('click', (event) => downloadPdf(event.currentTarget, 'card'));
+  $('pin-card').addEventListener('click', (event) => {
+    const saved = items.find((item) => item.id === editing?.id);
+    if (saved) downloadPdf(event.currentTarget, 'card', saved);
   });
 
   if (register) {

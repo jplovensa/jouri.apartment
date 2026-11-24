@@ -16,7 +16,7 @@ test('the exported GLB assemblies load and have no clashes with separate furnitu
     const bytes = await readFile(new URL(`../public/models/${name}.glb`, import.meta.url));
     const buffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
     const asset = await loader.parseAsync(buffer, '');
-    assert.ok(asset.scene.children.length >= 3, name);
+    assert.ok(asset.scene.children.length >= (name === 'doors' ? 2 : 3), name);
     group.add(asset.scene);
   }
   group.updateMatrixWorld(true);
@@ -24,7 +24,7 @@ test('the exported GLB assemblies load and have no clashes with separate furnitu
     const solids = children.map((mesh) => new THREE.Box3().setFromObject(mesh, true));
     return { name, solids };
   });
-  assert.equal(assemblies.length, 21);
+  assert.equal(assemblies.length, 23);
   for (let i = 0; i < assemblies.length; i++) {
     for (let j = i + 1; j < assemblies.length; j++) {
       const a = assemblies[i];

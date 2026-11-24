@@ -1,6 +1,5 @@
 """Build the original fitted furniture meshes modelled from Interiola's drawing set."""
 import math
-import random
 from pathlib import Path
 
 import bpy
@@ -23,19 +22,19 @@ def material(name, rgb, rough=.55, metal=0):
     return mat
 
 
-teak = material("TACO TH 356 | Baltimore teak", (.26, .108, .049), .48)
-end_grain = material("Teak edge band", (.19, .081, .036), .48)
-olive = material("TACO TH 076 | Thyme Rhythm", (.144, .158, .076))
-rust = material("TACO TH 059 | South Terracotta", (.37, .109, .057))
-stone = material("Sandimas Amarillo | Honed granite", (.60, .526, .405), .42)
-white = material("Ivory linen", (.83, .76, .65), .85)
-fabric = material("TACO TH 1239 | Avena Linen", (.65, .55, .43), .82)
-ochre = material("Cognac upholstery", (.45, .192, .059), .66)
+teak = material("TACO TH 356 | Baltimore teak", (.087, .024, .013), .48)
+end_grain = material("Teak edge band", (.073, .020, .011), .48)
+olive = material("TACO TH 076 | Thyme Rhythm", (.080, .093, .042))
+rust = material("TACO TH 059 | South Terracotta", (.227, .025, .006))
+stone = material("Sandimas Amarillo | Honed granite", (.434, .386, .337), .44)
+white = material("Ivory linen", (.81, .79, .73), .85)
+fabric = material("TACO TH 1239 | Avena Linen", (.775, .720, .645), .82)
+ochre = material("Cognac upholstery", (.43, .193, .067), .66)
 ceramic = material("Glazed ivory ceramic", (.87, .86, .80), .19)
 dark = material("Dark powder coated metal", (.032, .028, .024), .43, .4)
 brass = material("Satin brass", (.58, .38, .15), .30, .76)
 mirror = material("Mirror and brushed steel", (.52, .57, .56), .21, .83)
-green_tile = material("Olive glazed mosaic", (.158, .205, .131), .27)
+green_tile = material("Olive glazed mosaic", (.073, .109, .055), .27)
 grout = material("Warm grey grout", (.32, .32, .25))
 led = material("Warm integrated lighting", (.91, .55, .24), .32)
 shader = led.node_tree.nodes.get("Principled BSDF")
@@ -45,23 +44,17 @@ glass = material("Clear shower glass", (.72, .86, .83), .11)
 glass.node_tree.nodes.get("Principled BSDF").inputs["Alpha"].default_value = .29
 glass.surface_render_method = "DITHERED"
 
-# Packed, deterministic teak grain for the visible panel faces.
-rand = random.Random(356)
-width, height = 128, 256
-image = bpy.data.images.new("Baltimore teak visual grain", width, height, alpha=False)
-image.colorspace_settings.name = 'sRGB'
-pixels = []
-for y in range(height):
-    for x in range(width):
-        phase = x * .45 + .36 * math.sin(y * .027 + x * .05)
-        value = .82 + .08 * math.sin(phase) + .04 * math.sin(phase * 3.13) + rand.random() * .025
-        pixels.extend((value * .60, value * .39, value * .29, 1))
-image.pixels.foreach_set(pixels)
-image.pack()
-wood_nodes = teak.node_tree.nodes
-texture = wood_nodes.new("ShaderNodeTexImage")
-texture.image = image
-teak.node_tree.links.new(texture.outputs["Color"], wood_nodes.get("Principled BSDF").inputs["Base Color"])
+# Swatch textures cropped from the supplied Interiola materials sheet, page 15.
+for mat, filename in ((teak, "baltimore-teak.png"), (stone, "amarillo-granite.png")):
+    image = bpy.data.images.load(str(ROOT / "assets/materials" / filename), check_existing=True)
+    image.pack()
+    nodes = mat.node_tree.nodes
+    tex = nodes.new("ShaderNodeTexImage")
+    tex.image = image
+    mat.node_tree.links.new(tex.outputs["Color"], nodes.get("Principled BSDF").inputs["Base Color"])
+
+almond_burl = material("F07 Almond burl veneer", (.46, .327, .206), .53)
+marshmallow = material("TACO TH 057 DB | Marshmallow White", (.874, .852, .803), .57)
 
 room_nodes = {}
 parent = None
@@ -91,10 +84,11 @@ def panel(name, w, h, d, x, y, z, mat, edge=.006):
     obj = surface(bpy.context.object, name, mat)
     obj.scale = (w / 2, d / 2, h / 2)
     bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
-    bevel = obj.modifiers.new("Rounded joinery edges", 'BEVEL')
-    bevel.width = min(edge, w / 3, h / 3, d / 3)
-    bevel.segments = 2
-    obj.modifiers.new("Weighted face normals", 'WEIGHTED_NORMAL')
+    if edge:
+        bevel = obj.modifiers.new("Rounded joinery edges", 'BEVEL')
+        bevel.width = min(edge, w / 3, h / 3, d / 3)
+        bevel.segments = 2
+        obj.modifiers.new("Weighted face normals", 'WEIGHTED_NORMAL')
     return obj
 
 
@@ -202,22 +196,37 @@ cabinet(.37, 1.93, .24, 1, open_shelves=True)
 panel("Recessed graphite appliance", .285, 1.37, .034, 0, .775, -.128, dark)
 rod("Appliance handle", (-.079, 1.056, -.156), (.069, 1.056, -.156), .011, mirror)
 
-asset("social", "F01 Granite waterfall island", 4.92, 5)
+# F01 shop sheet 21: 1,500 x 550 mm, counter at 950 mm, 810 mm raised pass.
+asset("social", "F01 Two-tier tiled island", 4.92, 5)
 rotate(-90)
-cabinet(1.29, .737, .46, 3, base=.068)
-panel("Granite eased countertop", 1.43, .058, .59, 0, .766, .03, stone, .016)
-for x in (-.675, .675):
-    panel("Waterfall end", .038, .735, .52, x, .368, .01, stone, .008)
+for part in (-1, 1):
+    x = -.665 if part == -1 else .145
+    w = .175 if part == -1 else .95
+    panel("Teak island support", w, .91, .45, x, .455, .014, teak)
+panel("Tiled service counter", 1.50, .04, .55, 0, .930, 0, green_tile)
+for col in range(24):
+    for row in range(5):
+        x = -.716 + col * .062
+        z = -.215 + row * .106
+        if x < .06 and z < -.025:
+            continue
+        panel("Glossy green island tile", .060, .0025, .103, x, .951, z, green_tile, 0)
+panel("Raised teak pass", .810, .22, .25, -.345, 1.060, -.15, teak)
+panel("Raised Amarillo stone cap", .810, .03, .25, -.345, 1.185, -.15, stone, .007)
+for j in range(3):
+    for i in range(3):
+        panel("Grid-panel island face", .311, .257, .016,
+              -.163 + i * .316, .228 + j * .269, .244, teak)
 
 for i, z in enumerate((4.65, 5.24), 1):
     asset("social", f"F02 Sculpted cognac stool {i}", 4.23, z)
-    cushion("Contour saddle", .351, .326, .083, 0, .550, 0, ochre)
-    shell = panel("Curved wrap backrest", .055, .25, .30, -.134, .665, 0, ochre, .026)
+    cushion("Contour saddle", .351, .326, .083, 0, .676, 0, ochre)
+    shell = panel("Curved wrap backrest", .055, .25, .30, -.134, .791, 0, ochre, .026)
     shell.rotation_euler.y = .11
     for x in (-.115, .115):
         for z_leg in (-.108, .108):
-            rod("Tapered steel leg", (x * 1.35, .012, z_leg * 1.32), (x, .52, z_leg), .011, dark, .018)
-    rod("Footrest", (-.138, .20, -.134), (.139, .20, -.134), .012, dark)
+            rod("Tapered steel leg", (x * 1.35, .012, z_leg * 1.32), (x, .644, z_leg), .011, dark, .018)
+    rod("Footrest", (-.138, .26, -.134), (.139, .26, -.134), .012, dark)
 
 asset("social", "F05 Full-height bicycle joinery", .37, 4.39)
 rotate(90)
@@ -233,10 +242,48 @@ for x in (-.4, .4):
     panel("Niche side return", .051, 1.48, .113, x, .74, .018, end_grain)
 for y in (.29, .66, 1.05):
     panel("Display niche shelf", .76, .027, .13, 0, y, .023, teak)
-asset("social", "F07 Low window seat with storage", 2.54, 7.23)
+asset("social", "F07 Almond burl sofa cabinet", 1.93, 7.258)
 rotate(180)
-cabinet(2.9, .375, .362, 4, base=.055)
-cushion("Avena seat pad", 2.18, .335, .055, .11, .404, 0, fabric)
+cabinet(2.047, .409, .34, 4, open_shelves=True, base=.055)
+for x in (-.761, -.253, .253, .761):
+    panel("Bookmatched almond burl front", .497, .303, .018, x, .228, .167, almond_burl)
+panel("Baltimore teak cabinet cap", 2.047, .028, .355, 0, .411, 0, teak)
+
+# Interiola P01/P02, sheets 53-58. Face the living room and occupy the traced openings.
+def door_frame(w, leaf, reverse):
+    side = (w - leaf) / 2
+    for x in (-(w-side)/2, (w-side)/2):
+        panel("Concealed jamb", side - .003, 2.168, .09, x, 1.084, 0, teak)
+        panel("Reverse jamb lining", side - .004, 2.168, .008, x, 1.084, -.05, reverse)
+    panel("Concealed transom", w - .004, .483, .087, 0, 2.3695, 0, teak)
+    panel("Reverse transom lining", w - .004, .483, .009, 0, 2.3695, -.05, reverse)
+
+asset("doors", "P1 Ribbed concealed WIC door", 4.515, 7.514)
+rotate(180)
+door_frame(.806, .726, teak)
+panel("P1 swing leaf", .720, 2.128, .044, 0, 1.077, .012, teak)
+for z_min, top in ((.013, 2.141), (2.168, 2.611)):
+    for i in range(19):
+        x = -.36 + i * .04
+        if abs(x) > .352 and top < 2.5:
+            continue
+        panel("Baltimore teak vertical batten", .020, top - z_min, .020, x,
+              (z_min + top) / 2, .052, teak, .002)
+
+asset("doors", "P2 Concealed display-shelf door", 3.4355, 7.568)
+rotate(180)
+door_frame(.935, .854, marshmallow)
+panel("P2 reinforced leaf", .848, 2.128, .045, 0, 1.077, -.009, teak)
+panel("Marshmallow White reverse", .843, 2.121, .008, 0, 1.077, -.036, marshmallow)
+for x in (-.415, .415):
+    panel("Teak display return", .019, 2.107, .092, x, 1.075, .038, teak)
+for y in (.44, .982, 1.524, 2.109):
+    panel("Teak inset display shelf", .814, .019, .104, 0, y, .055, teak)
+    if y > 2:
+        continue
+    for x in (-.344, .344):
+        rod("Display rail upright", (x, y+.013, .095), (x, y+.10, .095), .005, brass)
+    rod("10 mm gold retaining rod", (-.350, y+.076, .095), (.350, y+.076, .095), .005, brass)
 
 # Main bedroom, headboard, upholstered bed and six custom joinery components.
 asset("bedroom", "F15–F16 Main bedroom upholstered platform", 2.22, 1.18)
@@ -252,6 +299,7 @@ panel("Terracotta headboard backing", 2.16, .557, .067, .165, .326, -1.081, rust
 for i in range(7):
     panel("Upholstered headboard panel", .299, .376, .036, -.755 + .307 * i, .34, -1.038, fabric, .018)
 panel("Headboard cap", 2.16, .036, .092, .165, .616, -1.071, teak)
+panel("Recessed terracotta accent", 2.05, .110, .016, .165, .543, -1.017, rust)
 panel("Recessed warm lighting", 2.09, .009, .015, .165, .591, -1.025, led)
 asset("bedroom", "F17 Accessory cabinet", .65, .48)
 rotate(90)
@@ -268,6 +316,9 @@ cabinet(.515, 1.80, .374, 6, open_shelves=True)
 asset("bedroom", "F21 Display and low media cabinetry", 2.1, 3.36)
 rotate(180)
 cabinet(2.29, .414, .385, 5)
+for y in (1.52, 1.78, 2.04):
+    panel("Illuminated full-width upper display ledge", 2.22, .025, .288, 0, y, -.02, teak)
+    panel("Concealed warm strip beneath display ledge", 2.15, .009, .009, 0, y-.017, .094, led)
 panel("Granite cabinet top", 2.31, .029, .411, 0, .425, 0, stone)
 for x in (-1.128, -.706):
     panel("Tall display tower side", .018, 1.11, .344, x, .978, 0, teak)

@@ -1,6 +1,6 @@
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
-export const FURNITURE_PACKS = ['social', 'bedroom', 'work', 'bath'];
+export const FURNITURE_PACKS = ['social', 'doors', 'bedroom', 'work', 'bath'];
 
 export async function loadFurnishings(group) {
   const loader = new GLTFLoader();

@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { APARTMENT_PLAN, ROOMS, makeApartment } from './model.js';
-import { JOINERY, RAIL_CLEARANCE_MM } from './wardrobe.js';
+import { JOINERY, RAIL_CLEARANCE_MM, STANDING_DEPTH_MM, GARMENT_ALLOWANCE_MM } from './wardrobe.js';
 import './style.css';
 
 const $ = (id) => document.getElementById(id);
@@ -28,9 +28,9 @@ const roomNotes = {
   bath: 'Vanity, shower and sanitary fittings follow the render as visual references.',
   kitchen: 'Olive base units, a granite worktop and teak upper cabinets.',
   dining: 'Granite-topped island with two stools, based on the furniture plan.',
-  living: 'Teak media wall and fitted storage from the Interiola renders.',
+  living: 'Baltimore teak media joinery and two concealed doors. P1 has 20 mm ribs and 20 mm spacing. P2 has integrated display shelves, gold retainers and a Marshmallow White reverse.',
   work: 'Angled alcove with daybed, fitted storage and a desk.',
-  wic: `2,022 × 2,157 mm bay · 2,610 mm ceiling. Proposed ${RAIL_CLEARANCE_MM} mm gap, up from 57 mm in SD-01. The shaded zone leaves 650 mm in front of the rack after a 100 mm clothing allowance. Verify on site before changing the rail.`,
+  wic: `2,022 × 2,157 mm bay · 2,610 mm ceiling. Proposed ${RAIL_CLEARANCE_MM} mm rail-to-rack gap. The shaded zone leaves ${STANDING_DEPTH_MM} mm in front of the rack after a ${GARMENT_ALLOWANCE_MM} mm clothing allowance. Check this tighter standing space on site.`,
 };
 
 const references = {
@@ -38,7 +38,7 @@ const references = {
   bath: ['bath'],
   kitchen: ['kitchen', 'kitchen-detail'],
   dining: ['kitchen', 'living'],
-  living: ['living', 'living-detail'],
+  living: ['living', 'living-detail', 'door-p1', 'door-p2', 'door-p2-detail'],
   work: ['work', 'work-detail'],
   wic: ['apartment'],
 };
@@ -59,6 +59,7 @@ $('next-reference').addEventListener('click', () => {
 
 function selectRoom(id) {
   selection = id;
+  $('focus-doors').hidden = id !== 'living' || !sceneView;
   $('focus-room').hidden = !id || id === 'wic' || !sceneView;
   referenceIndex = 0;
   renderReference();
@@ -115,6 +116,13 @@ $('focus-room').addEventListener('click', () => {
   if (!selection || selection === 'wic') return;
   setView('orbit');
   focusedRoom = selection;
+  sceneView?.frame();
+});
+$('focus-doors').addEventListener('click', () => {
+  setView('orbit');
+  focusedRoom = 'doors';
+  referenceIndex = 2;
+  renderReference();
   sceneView?.frame();
 });
 for (const button of wallButtons) button.addEventListener('click', () => {
@@ -195,12 +203,14 @@ function initialise() {
     model.showWalls(wallsVisible, detail);
     renderer.shadowMap.needsUpdate = true;
     const focusFloor = focusedRoom && model.floors.get(focusedRoom);
-    const bounds = detail ? model.detailBounds : focusFloor
+    const doors = focusedRoom === 'doors';
+    const doorBounds = new THREE.Box3(new THREE.Vector3(2.88, 0, 7.33), new THREE.Vector3(4.98, 2.64, 7.69));
+    const bounds = detail ? model.detailBounds : doors ? doorBounds : focusFloor
       ? new THREE.Box3().setFromObject(focusFloor).expandByVector(new THREE.Vector3(.30, .12, .30))
       : model.overviewBounds;
     if (focusFloor && !detail) bounds.max.y = 1.75;
     const target = bounds.getCenter(new THREE.Vector3());
-    const offset = top ? [0, 22, detail ? -.001 : .001] : detail ? [-11, 15, .4] : [-10, 20, -15];
+    const offset = top ? [0, 22, detail ? -.001 : .001] : detail ? [-11, 15, .4] : doors ? [-2, 2.1, -12] : [-10, 20, -15];
     camera.position.copy(target).add(new THREE.Vector3(...offset));
     camera.lookAt(target);
     camera.updateMatrixWorld(true);
