@@ -1,14 +1,17 @@
 """Build the original fitted furniture meshes modelled from Interiola's drawing set."""
 import math
+import sys
+from array import array
 from pathlib import Path
 
 import bpy
-from mathutils import Vector
+from mathutils import Matrix, Vector
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "public/models"
 OUT.mkdir(parents=True, exist_ok=True)
 bpy.ops.wm.read_factory_settings(use_empty=True)
+requested = set(sys.argv[sys.argv.index("--") + 1:]) if "--" in sys.argv else set()
 
 
 def material(name, rgb, rough=.55, metal=0):
@@ -337,26 +340,34 @@ for i, z in enumerate((4.65, 5.24), 1):
             rod("Tapered steel leg", (x * 1.35, .012, z_leg * 1.32), (x, .644, z_leg), .011, dark, .018)
     rod("Footrest", (-.138, .26, -.134), (.139, .26, -.134), .012, dark)
 
-asset("social", "F05 Full-height bicycle joinery", .37, 4.39)
+asset("social", "F05 Full-height bicycle joinery", .37, 4.19)
 rotate(90)
 cabinet(.86, 2.01, .46, 2)
 asset("social", "F04 Slatted floating media credenza", 1.88, 4.06)
 cabinet(2.29, .34, .302, 3, base=.046)
 for i in range(6):
     panel("Horizontal media ventilation slat", .64, .013, .018, 0, .14 + .021 * i, .165, end_grain, .002)
-asset("social", "F06 Teak dining niche", 5.57, 6.20)
-rotate(-90)
+asset("social", "F06 Teak panel beside living window", .190, 6.91)
+rotate(90)
+parent.scale.x = .72
 panel("Reeded timber backing", .88, 1.48, .033, 0, .74, -.048, teak)
 for x in (-.4, .4):
     panel("Niche side return", .051, 1.48, .113, x, .74, .018, end_grain)
 for y in (.29, .66, 1.05):
     panel("Display niche shelf", .76, .027, .13, 0, y, .023, teak)
-asset("social", "F07 Almond burl sofa cabinet", 1.93, 7.258)
+asset("social", "Two-seat linen sofa outside guestroom", 1.98, 6.97)
 rotate(180)
-cabinet(2.047, .409, .34, 4, open_shelves=True, base=.055)
-for x in (-.761, -.253, .253, .761):
-    panel("Bookmatched almond burl front", .497, .303, .018, x, .228, .167, almond_burl)
-panel("Baltimore teak cabinet cap", 2.047, .028, .355, 0, .411, 0, teak)
+sofa_linen = material("Ivory woven sofa upholstery", (.66, .616, .541), .87)
+sofa_thread = material("Sofa linen piping", (.52, .486, .411), .90)
+panel("Recessed teak sofa plinth", 1.74, .083, .60, 0, .043, -.006, teak, .016)
+panel("Upholstered sofa base", 1.91, .226, .744, 0, .207, 0, sofa_linen, .055)
+panel("Soft upholstered sofa back", 1.89, .508, .128, 0, .522, -.297, sofa_linen, .042)
+for x in (-.864, .864):
+    panel("Rounded low sofa arm", .183, .318, .678, x, .434, -.002, sofa_linen, .067)
+for x, angle in ((-.378, -.03), (.378, .026)):
+    cushion("Padded sofa seat", .736, .524, .126, x, .348, .059, sofa_linen, .004)
+    sewn_pillow("Plump back cushion", .734, .336, .153, x, .582, -.151, angle, .78, sofa_linen, sofa_thread)
+sewn_pillow("Olive toss cushion", .336, .239, .125, -.638, .565, -.041, -.21, .78, olive_cloth, olive_thread)
 
 # Interiola P01/P02, sheets 53-58. Face the living room and occupy the traced openings.
 def door_frame(w, leaf, reverse):
@@ -394,17 +405,72 @@ for y in (.44, .982, 1.524, 2.109):
         rod("Display rail upright", (x, y+.013, .095), (x, y+.10, .095), .005, brass)
     rod("10 mm gold retaining rod", (-.350, y+.076, .095), (.350, y+.076, .095), .005, brass)
 
+def imported_bedding():
+    """Adapt the CC0 Innerscene queen bedding to the Interiola platform and textiles."""
+    previous = set(bpy.data.objects)
+    bpy.ops.import_scene.gltf(filepath=str(ROOT / "assets/vendor/innerscene-queen.glb"))
+    bpy.context.view_layer.update()
+    imports = [ob for ob in bpy.data.objects if ob not in previous]
+    adapt = Matrix.Translation((0, -.018, .258 - .38 * .85)) @ Matrix.Diagonal((1.08, .952, .85, 1))
+    specs = {
+        "Nominal dimensioned mattress": ("Ivory cotton fitted mattress", (.84, .82, .77)),
+        "Plump pillow with closed seams": ("Cotton percale tailored sham", (.88, .86, .82)),
+        "Quilted closed duvet": ("Ivory cotton percale quilted duvet", (.83, .82, .79)),
+    }
+    finishes = {}
+    keep = set()
+    for obj in imports:
+        kind = next((key for key in specs if obj.name.startswith(key)), None)
+        if obj.type != 'MESH' or kind is None:
+            continue
+        keep.add(obj)
+        obj_transform = obj.matrix_world.copy()
+        obj.parent = parent
+        obj.matrix_parent_inverse = Matrix.Identity(4)
+        obj.matrix_basis = adapt @ obj_transform
+        if kind not in finishes:
+            name, rgb = specs[kind]
+            mat = obj.data.materials[0].copy()
+            mat.name = name
+            shader = mat.node_tree.nodes.get("Principled BSDF")
+            node = next((link.from_node for link in shader.inputs["Base Color"].links
+                         if link.from_node.type == 'TEX_IMAGE'), None)
+            if node is not None:
+                old_image = node.image
+                pixel_count = old_image.size[0] * old_image.size[1] * 4
+                pixels = array('f', [0.0]) * pixel_count
+                old_image.pixels.foreach_get(pixels)
+                lum = lambda i: .2126 * pixels[i] + .7152 * pixels[i+1] + .0722 * pixels[i+2]
+                mean = sum(lum(i) for i in range(0, pixel_count, 4)) / (pixel_count / 4)
+                for i in range(0, pixel_count, 4):
+                    shade = max(.78, min(1.08, 1 + (lum(i) / max(mean, .01) - 1) * .38))
+                    for channel in range(3):
+                        pixels[i+channel] = rgb[channel] * shade
+                new_image = bpy.data.images.new(name, old_image.size[0], old_image.size[1], alpha=False)
+                new_image.pixels.foreach_set(pixels)
+                new_image.pack()
+                node.image = new_image
+            else:
+                shader.inputs["Base Color"].default_value = (*rgb, 1)
+            shader.inputs["Roughness"].default_value = .88
+            finishes[kind] = mat
+        obj.data.materials[0] = finishes[kind]
+    for obj in imports:
+        if obj not in keep:
+            bpy.data.objects.remove(obj, do_unlink=True)
+    if len(keep) != 4:
+        raise RuntimeError(f"Expected four source bedding meshes, found {len(keep)}")
+
+
 # Main bedroom, headboard, upholstered bed and six custom joinery components.
 asset("bedroom", "F15–F16 Main bedroom upholstered platform", 2.22, 1.18)
+main_bed = parent
 panel("Chamfered platform", 1.83, .208, 2.015, 0, .147, .01, teak, .026)
 panel("Shadow reveal plinth", 1.73, .08, 1.91, 0, .04, .012, end_grain, .012)
-panel("Tailored cotton mattress", 1.72, .170, 1.91, 0, .333, .015, cotton, .038)
-panel("Inset fitted sheet", 1.714, .021, 1.902, 0, .421, .017, cotton, .009)
-drape("Box-quilted white duvet", 1.824, -.455, 1.018, 1.72, .963, .435, .15)
-drape("Avena Linen foot runner", 1.841, .53, .920, 1.72, .925, .472, .108, fabric)
-for x, yaw in ((-.43,-.10), (.43,.06)):
-    sewn_pillow("White sham", .69, .39, .135, x, .503, -.736, yaw, .26, cotton, cotton_thread)
-    sewn_pillow("Olive accent cushion", .45, .245, .136, x+.012, .565, -.526, -yaw, .42, olive_cloth, olive_thread)
+if not requested or "bedroom" in requested:
+    imported_bedding()
+for x, yaw in ((-.42,-.10), (.42,.06)):
+    sewn_pillow("Olive accent cushion", .45, .245, .136, x + .012, .579, -.481, -yaw, .38, olive_cloth, olive_thread)
 panel("Terracotta headboard backing", 2.16, .557, .067, .165, .326, -1.081, rust, .01)
 for i in range(7):
     panel("Upholstered headboard panel", .299, .376, .036, -.755 + .307 * i, .34, -1.038, fabric, .018)
@@ -502,8 +568,6 @@ panel("Soft-close concealed cistern", .126, .465, .367, .177, .246, 0, ceramic, 
 
 # Bake modifiers and batch same-material meshes per assembly so WebGL can render efficiently.
 bpy.context.view_layer.update()
-import sys
-requested = set(sys.argv[sys.argv.index("--") + 1:]) if "--" in sys.argv else set()
 for room, assemblies in room_nodes.items():
     if requested and room not in requested:
         continue
@@ -532,4 +596,17 @@ for room, assemblies in room_nodes.items():
     bpy.ops.export_scene.gltf(filepath=str(OUT / f"{room}.glb"), export_format="GLB",
                              use_selection=True, export_animations=False, export_cameras=False,
                              export_lights=False, export_yup=True)
-print("Exported furniture GLBs:", ", ".join(room_nodes))
+    if room == "bedroom":
+        bpy.ops.object.select_all(action="DESELECT")
+        original = main_bed.location.copy()
+        main_bed.location = (0, 0, 0)
+        bpy.context.view_layer.update()
+        main_bed.select_set(True)
+        for obj in main_bed.children:
+            obj.select_set(True)
+        bpy.ops.export_scene.gltf(filepath=str(OUT / "main-bed.glb"), export_format="GLB",
+                                 use_selection=True, export_animations=False, export_cameras=False,
+                                 export_lights=False, export_yup=True)
+        main_bed.location = original
+print("Furniture GLBs exported.")
+

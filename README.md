@@ -22,3 +22,9 @@ blender -b --factory-startup --python-exit-code 1 --python scripts/build-furnitu
 ```
 
 GitHub Actions builds and publishes the `dist/` folder to GitHub Pages after pushes to `main`.
+
+## Bed asset and facade openings
+
+The main bed uses the [Innerscene CC0 queen bedding model](https://www.innerscene.com/tools/library/3d-parts/queen-bed-with-bedding-original-interior-furnishing-ea3bae95) for the fitted mattress, duvet and shams. It was resized and recoloured to fit the Interiola-style platform. The complete adapted bed is downloadable from the main-bedroom panel as `main-bed.glb`. The vendor GLB is retained under `assets/vendor` for reproduction.
+
+The living and main-bedroom window positions follow the Interiola plan. Sill and head elevations are visually estimated. The main entrance follows the opening at the dining return, with provisional leaf and hardware geometry. The two-seat sofa replaces the previous low cabinet in front of the guestroom and leaves the P2 door clear.

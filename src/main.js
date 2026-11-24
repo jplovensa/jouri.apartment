@@ -31,15 +31,16 @@ const interiorShots = {
   bath: [[4.17, 1.36, 1.99], [5.13, .85, .92]],
   kitchen: [[4.06, 1.46, 4.20], [5.87, 1.03, 3.33]],
   dining: [[3.07, 1.45, 6.13], [5.33, .95, 4.88]],
-  living: [[3.48, 1.43, 6.30], [1.48, 1.05, 4.12]],
+  living: [[3.48, 1.45, 5.58], [.65, 1.12, 5.80]],
+  entry: [[4.06, 1.42, 6.20], [5.76, 1.10, 6.61]],
 };
 
 const roomNotes = {
-  master: 'The render shows a teak platform bed, terracotta headboard and fitted storage.',
+  master: 'Teak platform, ivory bedding and a two-panel window on the balcony wall. The bed GLB includes the fitted frame and bedding.',
   bath: 'Vanity, shower and sanitary fittings follow the render as visual references.',
   kitchen: 'Olive base units, a granite worktop and teak upper cabinets.',
-  dining: 'Granite-topped island with two stools, based on the furniture plan.',
-  living: 'Baltimore teak media joinery and two concealed doors. P1 has 20 mm ribs and 20 mm spacing. P2 has integrated display shelves, gold retainers and a Marshmallow White reverse.',
+  dining: 'The granite-topped island sits near the entrance. The door position follows the traced opening, with a provisional leaf height and hardware.',
+  living: 'Three-panel facade window, Baltimore teak joinery and a two-seat sofa beside the guestroom. P1 is ribbed teak. P2 has display shelves, gold retainers and a Marshmallow White reverse.',
   work: 'Angled alcove with daybed, fitted storage and a desk.',
   wic: `2,022 × 2,157 mm bay · 2,610 mm ceiling. Proposed ${RAIL_CLEARANCE_MM} mm rail-to-rack gap. The shaded zone leaves ${STANDING_DEPTH_MM} mm in front of the rack after a ${GARMENT_ALLOWANCE_MM} mm clothing allowance. Check this tighter standing space on site.`,
 };
@@ -71,6 +72,8 @@ $('next-reference').addEventListener('click', () => {
 function selectRoom(id) {
   selection = id;
   $('focus-doors').hidden = id !== 'living' || !sceneView;
+  $('focus-entry').hidden = id !== 'dining' || !sceneView;
+  $('bed-download').hidden = id !== 'master';
   $('focus-room').hidden = !id || id === 'wic' || !sceneView;
   referenceIndex = 0;
   renderReference();
@@ -138,11 +141,19 @@ $('focus-doors').addEventListener('click', () => {
   sceneView?.frame();
   viewport.scrollIntoView({ block: 'center' });
 });
+$('focus-entry').addEventListener('click', () => {
+  setView('orbit');
+  focusedRoom = 'entry';
+  interiorWallsVisible = true;
+  sceneView?.frame();
+  viewport.scrollIntoView({ block: 'center' });
+});
+
 function updateWallVisibility(model) {
   const isInterior = Boolean(interiorShots[focusedRoom]);
   const visible = isInterior ? interiorWallsVisible : wallsVisible;
   for (const option of wallButtons) option.setAttribute('aria-pressed', String(visible === (option.dataset.walls === 'on')));
-  model?.showWalls(visible, isClosetView(), isInterior ? focusedRoom : undefined);
+  model?.showWalls(visible, isClosetView(), isInterior ? (focusedRoom === 'entry' ? 'dining' : focusedRoom) : undefined);
 }
 
 for (const button of wallButtons) button.addEventListener('click', () => {

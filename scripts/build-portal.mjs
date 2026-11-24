@@ -2,7 +2,7 @@ import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { extname, join, relative } from 'node:path';
 import { ROOM_NAMES, SCOPES, SEED_WORK, STATUSES, PRIORITIES } from '../src/work-data.js';
 
-const mime = { '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.html': 'text/html; charset=utf-8', '.webp': 'image/webp', '.glb': 'model/gltf-binary' };
+const mime = { '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.html': 'text/html; charset=utf-8', '.webp': 'image/webp', '.png': 'image/png', '.glb': 'model/gltf-binary' };
 const assets = Object.create(null);
 async function collect(directory) {
   for (const entry of await readdir(directory, { withFileTypes: true })) {

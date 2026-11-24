@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import plan from './plan.json' with { type: 'json' };
 import { floorFinish, paintFinish, finishFurniture } from './surfaces.js';
 import { loadFurnishings } from './furnishings.js';
+import { applyCleanTimber } from './timber.js';
+import { addPlanWall, makeOpenings } from './openings.js';
 import { CLOSET, GARMENT_ALLOWANCE_MM, RACK_FRONT, RAIL_END, makeWardrobe } from './wardrobe.js';
 
 export const APARTMENT_PLAN = plan;
@@ -45,13 +47,14 @@ function floor(points, surface) {
   return mesh;
 }
 
-function addWall(group, [x1, z1, x2, z2], height = CLOSET.height) {
+function addWall(group, [x1, z1, x2, z2], height = CLOSET.height, base = 0) {
   const length = Math.hypot(x2 - x1, z2 - z1);
-  const wall = box(length, height, .13, (x1 + x2) / 2, height / 2, (z1 + z2) / 2,
+  const wall = box(length, height, .13, (x1 + x2) / 2, base + height / 2, (z1 + z2) / 2,
     [wallSurface, wallSurface, wallCap, wallSurface, wallSurface, wallSurface]);
   wall.receiveShadow = true;
   wall.rotation.y = -Math.atan2(z2 - z1, x2 - x1);
   group.add(wall);
+  if (base > 0 || height < .08) return;
   const skirting = box(length, .060, .151, wall.position.x, .03, wall.position.z, skirtingPaint);
   skirting.rotation.y = wall.rotation.y;
   skirting.receiveShadow = true;
@@ -64,8 +67,9 @@ export function makeApartment() {
   const fixtures = new THREE.Group();
   let furnitureFocus;
   const ceilings = new Map();
-  const fixturePacks = { master: 'bedroom', work: 'work', bath: 'bath', living: 'social', kitchen: 'social', dining: 'social' };
+  const fixturePacks = { master: 'bedroom', work: 'work', bath: 'bath', living: 'social', kitchen: 'social', dining: 'social', entry: 'social' };
   const walls = new THREE.Group();
+  const { windows, doors } = makeOpenings(box);
   const closet = makeWardrobe(box, plan.wardrobe, material);
   paintFinish(wallSurface);
   closet.traverse((item) => {
@@ -123,8 +127,8 @@ export function makeApartment() {
   const recessSurface = material('#b49a7d');
   for (const points of plan.recesses) shell.add(floor(points, recessSurface));
   // Original trace retains the short entrance pocket. Its wall lengths are approximate.
-  for (const wall of plan.walls) addWall(walls, wall);
-  shell.add(walls);
+  for (const wall of plan.walls) addPlanWall(walls, wall, addWall, CLOSET.height);
+  shell.add(walls, windows, doors);
   root.add(shell, fixtures, closet, closetShell);
   closetShell.visible = false;
   const overviewBounds = new THREE.Box3().setFromObject(root);
@@ -152,18 +156,15 @@ export function makeApartment() {
   return {
     root, floors, overviewBounds, detailBounds,
     async loadFurniture() {
-      const failures = await loadFurnishings(fixtures);
-      applyFurnitureFocus();
-      let teakMap;
-      fixtures.traverse((node) => {
-        if (node.isMesh && node.material?.name?.includes('Baltimore teak')) teakMap = node.material.map;
-      });
-      if (teakMap) closet.traverse((node) => {
-        if (node.material?.name !== 'Closet teak') return;
-        node.material.map = teakMap;
-        node.material.color.set('#ffffff');
-        node.material.needsUpdate = true;
-      });
+      const [failures] = await Promise.all([
+        loadFurnishings(fixtures).then(async (failures) => {
+          applyFurnitureFocus();
+          await applyCleanTimber(fixtures);
+          return failures;
+        }),
+        applyCleanTimber(closet, true),
+        applyCleanTimber(doors, true),
+      ]);
       return failures;
     },
     showFurniture(visible, focus) {
@@ -173,6 +174,8 @@ export function makeApartment() {
     },
     showWalls(visible, closetView, roomView) {
       walls.visible = visible && !closetView;
+      windows.visible = visible && !closetView;
+      doors.visible = visible && !closetView;
       closetShell.visible = visible && closetView;
       for (const [room, ceiling] of ceilings) ceiling.visible = visible && room === roomView;
     },

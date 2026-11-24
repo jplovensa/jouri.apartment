@@ -154,7 +154,7 @@ dialog h2, dialog p { margin: 0; }
   margin: 0; position: absolute; bottom: 12px; left: 12px;
   padding: 5px 10px; border-radius: 5px; background: #faf9f4e6; font-size: .78rem;
 }
-#focus-room, #focus-doors { min-height: 36px; width: 100%; margin-top: 7px; border-radius: 6px; border: 1px solid var(--line); background: #f2f3eb; font-size: .82rem; }
+#focus-room, #focus-doors, #focus-entry, #bed-download { min-height: 36px; width: 100%; margin-top: 7px; border-radius: 6px; border: 1px solid var(--line); background: #f2f3eb; font-size: .82rem; }
 .totals { grid-template-columns: repeat(6,minmax(0,1fr)); }
 .filters { grid-template-columns: minmax(95px,1fr) minmax(100px,1fr) minmax(170px,1.25fr); }
 .work-views { display: flex; flex-wrap: wrap; margin-top: 15px; gap: 5px; }
@@ -202,3 +202,5 @@ dialog h2, dialog p { margin: 0; }
   .advanced-entry { grid-template-columns: minmax(0,1fr) auto; }
   .form-actions { gap: 5px; flex-wrap: wrap; }
 }
+
+#bed-download { display: grid; place-items: center; text-decoration: none; color: inherit; }
