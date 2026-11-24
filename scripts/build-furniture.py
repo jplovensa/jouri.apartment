@@ -641,15 +641,18 @@ panel("Display cabinet teak back", 1.73, .751, .016, 0, 2.201, -.212, teak)
 for x in (-.438, .438):
     panel("Teak display divider", .020, .701, .233, x, 2.197, -.094, teak)
 
-# Working room, sheets 60–78. The wall facing the daybed is kept plain.
+# Working room, sheets 60–78. The wall opposite the bed stays plain.
+moccasin = material("TACO TH 009 D | Moccasin Ivory matte", (.835, .791, .719), .56)
 asset("work", "F09 Storage daybed", 2.916, 9.873)
 rotate(-90)
 panel("2040 by 1240 mm teak daybed platform", 1.240, .300, 2.040, 0, .150, 0, teak, .012)
 for x in (-.411, 0, .411):
-    panel("Teak storage drawer", .394, .233, .016, x, .150, 1.017, teak, .004)
+    panel("Teak storage drawer", .018, .232, .647, -.622, .151, x * 1.60, teak, .004)
 panel("Daybed mattress with fitted sheet", 1.19, .163, 1.959, 0, .378, -.006, cotton, .031)
 drape("White tailored daybed coverlet", 1.235, -.393, .986, 1.184, .956, .470, .123)
-sewn_pillow("Daybed white sham", .68, .345, .119, -.12, .517, -.686, -.11, .22, cotton, cotton_thread)
+for x, angle in ((-.295, -.10), (.284, .07)):
+    sewn_pillow("Daybed white sham", .56, .381, .155, x, .559, -.735, angle, .56, cotton, cotton_thread)
+sewn_pillow("Daybed olive sham", .393, .284, .129, -.25, .562, -.519, -.16, .47, olive_cloth, olive_thread)
 sewn_pillow("Daybed olive cushion", .42, .273, .12, .174, .563, -.501, .12, .34, olive_cloth, olive_thread)
 asset("work", "F08 Full-height daybed backdrop", 2.916, 9.873)
 rotate(-90)
@@ -658,11 +661,29 @@ for i in range(3):
     for y in (.693, 1.958):
         panel("Recessed square frame joint", .558, .009, .004, -.835 + i*.565, y, -1.021, end_grain, .001)
 
+# F10 is the fitted end of the desk corner, on the angled return.
+asset("work", "F10 Fitted corner cabinet beside desk", .983, 9.778)
+corner_shape = [(0, 0), (.895, 0), (.895, .850), (.012, .012)]
+for base, height in ((.006, .103), (.721, .031), (1.357, .032), (1.558, .029), (2.570, .039)):
+    joinery_prism("Angled fitted cabinet shelf", corner_shape, base, height, olive)
+joinery_prism("Teak cabinet angled back", [(0, 0), (.895, .826), (.895, .850), (.012, .012)],
+              .109, 2.462, teak)
+panel("Deep teak bedside cabinet cheek", .019, 2.499, .833, .885, 1.354, .419, teak)
+panel("Desk-side cabinet edge", .051, 2.500, .027, .822, 1.352, .010, teak)
+for x in (.203, .609):
+    for y, h in ((.372, .456), (2.099, .925)):
+        panel("Flush Moccasin Ivory cabinet door", .397, h, .020, x, y, -.008, moccasin, .003)
+    rod("Small brass cabinet knob", (.406 + (-.029 if x < .4 else .029), 1.690, -.014),
+        (.406 + (-.029 if x < .4 else .029), 1.690, -.035), .009, brass)
+panel("Ivory cabinet flap below Thyme Rhythm shelf", .794, .164, .021, .407, .623, -.008, moccasin, .003)
+for y in (1.345, 1.541):
+    panel("Recessed 3500 K cabinet lighting", .779, .008, .013, .407, y, .043, led, .001)
+
 asset("work", "F11 Wall-mounted work desk", 1.180, 9.258)
 rotate(90)
 panel("980 by 400 mm Thyme Rhythm desktop", .980, .040, .400, 0, .783, 0, olive, .006)
 for x in (-.245, .245):
-    panel("Moccasin Ivory desk drawer", .485, .158, .385, x, .684, -.002, marshmallow, .004)
+    panel("Moccasin Ivory desk drawer", .485, .158, .385, x, .684, -.002, moccasin, .004)
 panel("Recessed desk cable upstand", .65, .10, .013, -.115, .851, -.191, teak)
 
 asset("work", "F12 Scarlet Kitkat mosaic reveal", .967, 9.591)
@@ -673,13 +694,23 @@ for col in range(8):
         panel("Scarlet Kitkat mosaic tile", .039, .158, .004,
               -.144 + .041*col, .0815 + .163*row, .008, rust, 0)
 
-asset("work", "P03 Sliding panel above the daybed", 2.801, 10.554)
-rotate(180)
-panel("Recessed teak sliding panel surround", 1.736, 1.943, .044, 0, 1.6215, -.018, teak)
-for x in (-.284, .284):
-    panel("Moccasin Ivory sliding panel", .563, 1.836, .024, x, 1.628, .015, marshmallow, .006)
-    rod("Recessed brushed gold sliding pull", (x + .232, 1.56, .027),
-        (x + .232, 1.77, .027), .006, brass)
+# P3 sits on the continuous teak box beside the long edge of the mattress.
+asset("work", "P03 Fitted teak box and ivory sliding panels", 1.896, 10.517)
+box_outline = [(0, 0), (2.027, 0), (1.657, .401), (.289, .401)]
+joinery_prism("Teak box fitted to the angled alcove", box_outline, .003, .712, teak)
+joinery_prism("Continuous teak sill cap", box_outline, .715, .028, teak)
+panel("Concealed sliding panel backing", 1.842, 1.864, .025, .988, 1.675, .158, moccasin, .001)
+panel("Slim ivory top track", 1.862, .049, .106, .988, 2.585, .106, moccasin, .002)
+for x in (.073, 1.902):
+    panel("Ivory sliding panel jamb", .027, 1.816, .102, x, 1.651, .106, moccasin, .002)
+start = .088
+for index, width in enumerate((.449, .452, .451, .453)):
+    x = start + width / 2
+    panel("Flush sliding leaf in Moccasin Ivory", width - .003, 1.808, .026,
+          x, 1.651, .064 + .009 * (index % 2), moccasin, .001)
+    if index:
+        panel("Recessed vertical sliding pull", .009, .50, .003, start + .008, 1.299, .049, brass, .001)
+    start += width
 
 # Bathroom set-out from sheet 80. The F14 vertical rack is on the F13 vanity's left.
 asset("bath", "F13–F14 Wall vanity and shelf", 4.170, .318)

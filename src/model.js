@@ -275,7 +275,7 @@ export function makeApartment() {
       closetMirror.show(visible || closetView, walking || roomView === 'wic');
       closetShell.visible = visible && closetView;
       walkCeiling.visible = visible && walking;
-      showSkyline = visible && (walking || roomView === 'master' || roomView === 'living');
+      showSkyline = visible && (walking || roomView === 'master' || roomView === 'living' || roomView === 'work');
       skyline.visible = skylineLoaded && showSkyline;
       for (const [room, ceiling] of ceilings) ceiling.visible = visible && !walking && room === roomView;
     },

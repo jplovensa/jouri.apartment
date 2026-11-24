@@ -5,6 +5,8 @@ import * as THREE from 'three';
 export const OPENINGS = [
   { id: 'W01 Main-bedroom window', room: 'master', x: .027, from: .65, to: 2.022, sill: .78, head: 2.25, bays: 2 },
   { id: 'W02 Living-room window', room: 'living', x: .027, from: 4.65, to: 6.55, sill: .76, head: 2.13, bays: 3 },
+  { id: 'Working-room glazed balcony door', room: 'work', x: .902, from: 8.047, to: 8.793, sill: 0, head: 2.17, bays: 1, glazedDoor: true },
+  { id: 'Working-room glazing over desk', room: 'work', x: .902, from: 8.793, to: 9.43, sill: .81, head: 2.17, bays: 1 },
   { id: 'Apartment entrance', room: 'dining', x: 5.779, from: 6.12, to: 7.10, sill: 0, head: 2.14 },
 ];
 
@@ -12,16 +14,20 @@ export function addPlanWall(group, segment, addWall, wallHeight) {
   const [x1, z1, x2, z2] = segment;
   const low = Math.min(z1, z2);
   const high = Math.max(z1, z2);
-  const opening = OPENINGS.find(({ x, from, to }) => x1 === x && x2 === x && from >= low && to <= high);
-  if (!opening) {
+  const openings = OPENINGS.filter(({ x, from, to }) => x1 === x && x2 === x && from >= low && to <= high)
+    .sort((a, b) => a.from - b.from);
+  if (!openings.length) {
     addWall(group, segment, wallHeight);
     return;
   }
-  const { x, from, to, sill, head } = opening;
-  if (from > low) addWall(group, [x, low, x, from], wallHeight);
-  if (to < high) addWall(group, [x, to, x, high], wallHeight);
-  if (sill > 0) addWall(group, [x, from, x, to], sill);
-  if (head < wallHeight) addWall(group, [x, from, x, to], wallHeight - head, head);
+  let cursor = low;
+  for (const { x, from, to, sill, head } of openings) {
+    if (from > cursor) addWall(group, [x, cursor, x, from], wallHeight);
+    if (sill > 0) addWall(group, [x, from, x, to], sill);
+    if (head < wallHeight) addWall(group, [x, from, x, to], wallHeight - head, head);
+    cursor = to;
+  }
+  if (cursor < high) addWall(group, [x1, cursor, x1, high], wallHeight);
 }
 
 export function makeOpenings(box) {
@@ -37,7 +43,7 @@ export function makeOpenings(box) {
   const brass = new THREE.MeshStandardMaterial({ color: '#af9b80', roughness: .31, metalness: .78 });
 
   for (const opening of OPENINGS) {
-    const { id, x, from, to, sill, head, bays } = opening;
+    const { id, x, from, to, sill, head, bays, glazedDoor } = opening;
     const assembly = new THREE.Group();
     assembly.name = id;
     assembly.position.set(x, 0, (from + to) / 2);
@@ -60,6 +66,10 @@ export function makeOpenings(box) {
       }
       add(width - .004, .025, .137, 0, sill + .0125, .008, frame);
       add(width - .10, .011, .065, 0, sill + .054, .009, rubber);
+      if (glazedDoor) {
+        add(.020, .154, .024, width / 2 - .077, 1.04, .058, frame);
+        add(.032, .013, .017, width / 2 - .077, 1.04, .077, rubber);
+      }
     } else {
       add(width - 2 * profile - .009, height - profile - .018, .049, 0, height / 2 - .012, -.012, teak);
       add(width - 2 * profile, .018, .127, 0, .009, 0, brass);
