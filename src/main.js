@@ -101,7 +101,7 @@ function setView(next) {
   for (const button of viewButtons) button.setAttribute('aria-pressed', String(button.dataset.view === view));
   $('reset').textContent = isWalkView() ? 'Back to entrance' : 'Reset view';
   $('controls-hint').textContent = isWalkView()
-    ? 'WASD or arrows to move · Drag or Q/E to look · Select a room to jump'
+    ? 'Joystick, WASD or arrows to move · Drag the view or use Q/E to look · Select a room to jump'
     : isPlanView()
     ? 'Drag to pan · Scroll or pinch to zoom'
     : 'Drag to orbit · Scroll or pinch to zoom';

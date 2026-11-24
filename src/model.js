@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import plan from './plan.json' with { type: 'json' };
+import cityPanoramaUrl from '../assets/city-panorama.webp?url';
 import { floorFinish, paintFinish, finishFurniture } from './surfaces.js';
 import { loadFurnishings } from './furnishings.js';
 import { applyCleanTimber } from './timber.js';
@@ -73,6 +74,13 @@ export function makeApartment() {
   const fixturePacks = { master: 'bedroom', work: 'work', bath: 'bath', living: 'social', kitchen: 'social', dining: 'social', entry: 'social' };
   const walls = new THREE.Group();
   const { windows, doors } = makeOpenings(box);
+  const skylineMaterial = new THREE.MeshBasicMaterial({ toneMapped: false });
+  const skyline = new THREE.Mesh(new THREE.PlaneGeometry(30, 10), skylineMaterial);
+  skyline.rotation.y = Math.PI / 2;
+  skyline.position.set(-5.1, 1.74, 3.55);
+  skyline.visible = false;
+  let skylineLoaded = false;
+  let showSkyline = false;
   const openLeaves = new THREE.Group();
   const openLeafSurface = new THREE.MeshStandardMaterial({ color: '#623b2a', roughness: .51, name: 'Entrance teak' });
   const openLeafSpecs = [[4.16, 7.53, .726], [3.855, 7.568, .854]];
@@ -176,7 +184,7 @@ export function makeApartment() {
   detailFloor.receiveShadow = true;
   detailFloorGroup.add(detailFloor);
   detailFloorGroup.visible = false;
-  root.add(detailFloorGroup, clearance);
+  root.add(detailFloorGroup, clearance, skyline);
   function applyFurnitureFocus() {
     const pack = furnitureFocus === 'doors' ? 'doors' : fixturePacks[furnitureFocus];
     for (const scene of fixtures.children) {
@@ -196,6 +204,16 @@ export function makeApartment() {
         applyCleanTimber(closet, true),
         applyCleanTimber(doors, true),
         applyCleanTimber(openLeaves, true),
+        new THREE.TextureLoader().loadAsync(cityPanoramaUrl).then((texture) => {
+          texture.colorSpace = THREE.SRGBColorSpace;
+          texture.anisotropy = 8;
+          skylineMaterial.map = texture;
+          skylineMaterial.needsUpdate = true;
+          skylineLoaded = true;
+          skyline.visible = showSkyline;
+        }).catch(() => {
+          // Retain the daylight background if the panorama cannot be loaded.
+        }),
       ]);
       return failures;
     },
@@ -231,6 +249,8 @@ export function makeApartment() {
       doors.visible = visible && !closetView;
       closetShell.visible = visible && closetView;
       walkCeiling.visible = visible && walking;
+      showSkyline = visible && (walking || roomView === 'master' || roomView === 'living');
+      skyline.visible = skylineLoaded && showSkyline;
       for (const [room, ceiling] of ceilings) ceiling.visible = visible && !walking && room === roomView;
     },
     focusCloset(isDetail, showClearance = false) {
