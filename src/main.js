@@ -28,10 +28,10 @@ function element(tag, content) {
 
 const interiorShots = {
   master: [[3.28, 1.47, 2.95], [1.91, .72, .96]],
-  work: [[1.44, 1.27, 8.16], [2.85, .65, 9.85]],
+  work: [[2.72, 1.44, 8.04], [2.38, 1.03, 9.89]],
   bath: [[4.17, 1.36, 1.99], [5.13, .85, .92]],
-  kitchen: [[4.06, 1.46, 4.20], [5.87, 1.03, 3.33]],
-  dining: [[3.07, 1.45, 6.13], [5.33, .95, 4.88]],
+  kitchen: [[3.91, 1.52, 3.85], [5.88, 1.32, 4.07]],
+  dining: [[3.17, 1.53, 6.32], [5.35, 1.15, 5.04]],
   living: [[3.48, 1.45, 5.58], [.65, 1.12, 5.80]],
   entry: [[4.06, 1.42, 6.20], [5.76, 1.10, 6.61]],
 };
@@ -39,8 +39,8 @@ const interiorShots = {
 const roomNotes = {
   master: 'Teak platform, ivory bedding and a two-panel window on the balcony wall. The bed GLB includes the fitted frame and bedding.',
   bath: 'Vanity, shower and sanitary fittings follow the render as visual references.',
-  kitchen: 'Olive base units, a granite worktop and teak upper cabinets.',
-  dining: 'The granite-topped island sits near the entrance. The door position follows the traced opening, with a provisional leaf height and hardware.',
+  kitchen: 'Olive base units and Amarillo granite lead to the refrigerator in the 589 mm F3 bay between the dispenser and the lit end cabinet.',
+  dining: 'The 1,500 × 550 mm island has a raised Amarillo pass and two stools on the living-room side. The door position follows the traced opening, with a provisional leaf height and hardware.',
   living: 'Three-panel facade window, Baltimore teak joinery and a two-seat sofa beside the guestroom. P1 is ribbed teak. P2 has display shelves, gold retainers and a Marshmallow White reverse.',
   work: 'Angled alcove with daybed, fitted storage and a desk.',
   wic: `2,022 × 2,157 mm bay · 2,610 mm ceiling. Proposed ${RAIL_CLEARANCE_MM} mm rail-to-rack gap. The shaded zone leaves ${STANDING_DEPTH_MM} mm in front of the rack after a ${GARMENT_ALLOWANCE_MM} mm clothing allowance. Check this tighter standing space on site.`,
@@ -229,8 +229,9 @@ function initialise() {
     scene.add(bounce);
   }
   const lampPositions = [
-    [5.56, 1.33, 3.45, 1.3], [1.69, .70, .24, .24], [2.28, .69, .24, .33],
-    [2.90, .70, .24, .24], [2.27, 1.73, 3.22, 1.15], [4.42, 1.36, .51, .88],
+    [5.81, 1.39, 3.0, .66], [5.80, 1.39, 3.78, .71], [5.61, 1.94, 5.65, .31],
+    [1.69, .92, .07, .24], [2.28, .92, .07, .33],
+    [2.90, .92, .07, .24], [2.27, 1.73, 3.22, 1.15], [4.42, 1.36, .51, .88],
   ];
   for (const [x, y, z, intensity] of lampPositions) {
     const bounce = new THREE.PointLight('#ffcf9d', intensity, 1.2, 2);

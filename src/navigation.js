@@ -11,7 +11,7 @@ export const WALK_STARTS = {
   entry: [5.29, 6.63, Math.PI / 2],
   master: [3.20, 2.84, .40],
   bath: [4.17, 1.79, -.65],
-  kitchen: [4.58, 3.30, -1.38],
+  kitchen: [4.07, 3.54, -1.78],
   dining: [4.43, 6.46, -.30],
   living: [2.27, 5.83, 1.33],
   work: [2.96, 8.18, 2.90],

@@ -85,8 +85,10 @@ def xyz(x, y, z):
 def panel(name, w, h, d, x, y, z, mat, edge=.006):
     bpy.ops.mesh.primitive_cube_add(size=2, location=xyz(x, y, z))
     obj = surface(bpy.context.object, name, mat)
-    obj.scale = (w / 2, d / 2, h / 2)
-    bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+    for vertex in obj.data.vertices:
+        vertex.co.x *= w / 2
+        vertex.co.y *= d / 2
+        vertex.co.z *= h / 2
     if edge:
         bevel = obj.modifiers.new("Rounded joinery edges", 'BEVEL')
         bevel.width = min(edge, w / 3, h / 3, d / 3)
@@ -283,33 +285,125 @@ def rotate(degrees):
     parent.rotation_euler.z = math.radians(degrees)
 
 
-# Living, kitchen and dining, sheets F01-F07.
-asset("social", "F03 Olive and teak kitchen", 5.91, 3.86)
-rotate(-90)
-cabinet(2.82, .825, .52, 6, olive, base=.083)
-panel("Honed counter", 2.87, .041, .57, 0, .847, .01, stone, .012)
-panel("Stone backsplash", 2.81, .50, .018, 0, 1.113, -.248, stone)
-for i in range(6):
-    x = -1.16 + .46 * i
-    panel("Teak overhead door", .453, .51, .039, x, 1.65, -.012, teak)
-panel("Upper carcass", 2.76, .53, .29, 0, 1.65, -.153, teak)
-panel("Under-cabinet warm strip", 2.74, .012, .024, 0, 1.38, -.023, led)
-rings("Brushed inset sink", (-1.06, .875, .015), [
-    (0, .18, .155), (.014, .21, .172), (.017, .19, .153), (-.012, .142, .115),
-], mirror)
-rod("Raised faucet stem", (-1.07, .87, -.192), (-1.07, 1.055, -.192), .015, brass)
-rod("Bent faucet outlet", (-1.07, 1.055, -.192), (-1.07, 1.038, -.095), .011, brass)
-panel("Induction cooktop", .57, .015, .38, .54, .877, .045, dark, .022)
-for x in (.39, .69):
-    rings("Cooktop burner ring", (x, .887, .045), [(0, .104, .104), (.003, .102, .102), (.003, .096, .096), (0, .095, .095)], mirror)
+# F03 kitchen along the east wall. Local x runs from the bathroom toward dining.
+# Sheets 13 and 24–37: 2,262 mm base run, followed by the 400 mm dispenser,
+# 589 mm refrigerator bay and 350 mm chamfered display cabinet.
+def joinery_prism(name, footprint, base, height, mat):
+    count = len(footprint)
+    vertices = [xyz(x, y, z) for y in (base, base + height) for x, z in footprint]
+    faces = [tuple(range(count)), tuple(range(2 * count - 1, count - 1, -1))]
+    faces.extend((i, i + count, (i + 1) % count + count, (i + 1) % count) for i in range(count))
+    mesh = bpy.data.meshes.new(name)
+    mesh.from_pydata(vertices, [], faces)
+    mesh.update()
+    uv = mesh.uv_layers.new(name="Joinery UV")
+    for face in mesh.polygons:
+        for loop_index in face.loop_indices:
+            vertex = mesh.vertices[mesh.loops[loop_index].vertex_index].co
+            uv.data[loop_index].uv = (vertex.x / .6, -vertex.y / .6 if face.index < 2 else vertex.z / 1.2)
+    obj = bpy.data.objects.new(name, mesh)
+    bpy.context.collection.objects.link(obj)
+    surface(obj, name, mat)
 
-asset("social", "Kitchen appliance tower", 5.81, 5.55)
-cabinet(.37, 1.93, .24, 1, open_shelves=True)
-panel("Recessed graphite appliance", .285, 1.37, .034, 0, .775, -.128, dark)
-rod("Appliance handle", (-.079, 1.056, -.156), (.069, 1.056, -.156), .011, mirror)
+
+def framed_front(name, w, h, x, y, z, mat, trim):
+    panel(name, w, h, .018, x, y, z, mat, .003)
+    for edge in (-1, 1):
+        panel(f"{name} vertical frame", .017, h, .006, x + edge * (w - .017)/2, y, z + .011, trim, .002)
+        panel(f"{name} horizontal frame", w - .034, .017, .006, x, y + edge * (h - .017)/2, z + .011, trim, .002)
+
+
+asset("social", "F03 Olive and teak kitchen", 6.166, 2.25)
+rotate(-90)
+panel("Recessed Thyme Rhythm plinth", 2.258, .08, .664, 1.131, .04, .343, olive)
+panel("Lower cabinet carcass", 2.258, .615, .699, 1.131, .3875, .36, olive)
+door_start = .007
+for w in (.345, .345, .372, .349, .349, .488):
+    x = door_start + w / 2
+    framed_front("Thyme Rhythm framed base door", w - .005, .718, x, .441, .719, olive, olive)
+    for y in (.173, .190):
+        panel("Black base door vent", min(.16, w * .36), .007, .004, x, y, .733, dark, .002)
+    door_start += w
+
+# Existing Amarillo stone wraps the rectangular client sink opening.
+for left, right, back, front in ((0, .245, 0, .74), (.690, 2.262, 0, .74),
+                                 (.245, .690, 0, .185), (.245, .690, .566, .74)):
+    panel("Sandimas Amarillo counter", right - left, .03, front - back,
+          (left + right) / 2, .815, (back + front) / 2, stone, .0012)
+panel("Stone backsplash", 2.261, .609, .014, 1.131, 1.1345, .015, stone, .001)
+sink_x, sink_z = .4675, .3755
+panel("Brushed sink basin", .415, .012, .349, sink_x, .699, sink_z, mirror, .014)
+for edge in (-1, 1):
+    panel("Sink side rim", .039, .010, .426, sink_x + edge * .222, .832, sink_z, mirror, .003)
+    panel("Sink end rim", .406, .010, .024, sink_x, .832, sink_z + edge * .199, mirror, .003)
+    panel("Sink polished side", .011, .128, .369, sink_x + edge * .208, .765, sink_z, mirror, .006)
+    panel("Sink polished end", .41, .128, .011, sink_x, .765, sink_z + edge * .18, mirror, .006)
+rings("Sink drain", (sink_x, .708, sink_z), [(0, .029, .029), (.004, .027, .027)], dark)
+spout = [(sink_x, .835, .133), (sink_x, 1.041, .133), (sink_x, 1.106, .153),
+         (sink_x, 1.130, .194), (sink_x, 1.107, .246), (sink_x, 1.051, .267)]
+seam_line("Curved black sink tap", spout, dark, .014)
+panel("Existing two-ring gas cooktop", .663, .021, .405, 1.430, .843, .411, dark, .019)
+for x in (1.24, 1.62):
+    rings("Gas burner rings", (x, .856, .411), [(0, .103, .103), (.008, .101, .101), (.012, .074, .074)],
+          dark)
+    for offset in (-.067, .067):
+        panel("Cast burner support", .017, .015, .153, x + offset, .875, .411, dark, .003)
+    panel("Gas control", .032, .016, .026, x, .861, .571, dark, .005)
+
+panel("F03 upper carcass", 2.260, 1.005, .390, 1.131, 2.055, .201, teak)
+for x, w, bottom in ((.1775, .35, 1.432), (.531, .352, 1.432), (.885, .352, 1.432),
+                     (1.236, .346, 1.555), (1.584, .346, 1.555), (2.0125, .495, 1.76), (2.0125, .495, 1.432)):
+    top = 1.756 if x > 2 and bottom < 1.5 else 2.558
+    framed_front("Baltimore teak upper door", w, top - bottom, x, (top + bottom)/2, .409, teak, end_grain)
+    rod("Round gold cabinet knob", (x - w/2 + .042, bottom + .042, .421),
+        (x - w/2 + .042, bottom + .042, .448), .010, brass)
+panel("Fitted extractor hood", .660, .093, .404, 1.41, 1.498, .228, dark, .018)
+panel("Extractor front lip", .656, .029, .096, 1.41, 1.455, .429, dark)
+panel("Teak overhead adjuster", 2.262, .050, .615, 1.131, 2.584, .308, teak, .004)
+for x, width in ((.529, 1.049), (2.0105, .486)):
+    panel("3500 K worktop LED", width, .008, .015, x, 1.424, .348, led, .001)
+panel("3500 K upper wash LED", 2.248, .008, .015, 1.131, 2.555, .465, led, .001)
+
+asset("social", "F03 Side cabinetry and refrigerator", 6.166, 2.25)
+rotate(-90)
+bay_left, bay_right, end = 2.662, 3.251, 3.601
+end_shape = [(bay_right, .005), (3.334, .005), (end, .370), (end, .600), (bay_right, .600)]
+canopy_shape = [(2.264, .002), (3.334, .002), (end, .370), (end, .615), (2.264, .615)]
+joinery_prism("Chamfered cabinet canopy", canopy_shape, 2.559, .050, teak)
+joinery_prism("Existing Amarillo plinth", canopy_shape, .001, .079, stone)
+panel("Dispenser side cabinet", .397, 2.477, .561, 2.463, 1.3195, .289, teak)
+# The low dispenser door has a dark, inset access opening.
+for x, w, y, h in ((2.331, .128, .5945, 1.029), (2.596, .128, .5945, 1.029),
+                   (2.464, .137, .413, .665), (2.464, .137, .995, .225)):
+    panel("Framed dispenser access door", w, h, .020, x, y, .580, teak)
+panel("Recessed dispenser tap", .135, .158, .016, 2.464, .855, .567, dark)
+for y, h in ((1.432, .64), (2.147, .78)):
+    framed_front("Baltimore teak side door", .393, h, 2.463, y, .587, teak, end_grain)
+
+fridge = material("Graphite refrigerator enamel", (.021, .027, .033), .29, .17)
+fridge_edge = material("Refrigerator door gasket", (.009, .011, .012), .56)
+fridge_x = (bay_left + bay_right) / 2
+panel("Top cabinet over refrigerator", .584, .850, .565, fridge_x, 2.132, .289, teak)
+framed_front("Over-fridge teak door", .584, .837, fridge_x, 2.137, .588, teak, end_grain)
+panel("Refrigerator cabinet shell", .548, 1.563, .500, fridge_x, .8695, .297, fridge_edge, .016)
+panel("Refrigerator lower door", .556, .985, .054, fridge_x, .5875, .561, fridge, .020)
+panel("Refrigerator upper freezer door", .556, .561, .054, fridge_x, 1.371, .561, fridge, .021)
+panel("Recessed refrigerator grip", .490, .020, .017, fridge_x, 1.091, .587, fridge_edge, .007)
+panel("Freezer badge", .025, .021, .002, fridge_x + .215, 1.553, .589, mirror, .002)
+
+joinery_prism("Chamfered cabinet base", end_shape, .081, .021, teak)
+panel("End shelving left panel", .019, 2.455, .594, bay_right + .010, 1.3295, .302, teak)
+joinery_prism("Angled return at entry", [(3.320, .007), (3.333, .007), (end, .370), (end, .599),
+                                      (end - .018, .599), (end - .018, .372)], .081, 2.476, teak)
+for y in (1.268, 1.751, 2.143, 2.523):
+    joinery_prism("Chamfered display shelf", end_shape, y, .023, teak)
+    if y > 1.3:
+        panel("3500 K shelf LED", .273, .008, .009, 3.427, y - .008, .463, led, .001)
+panel("Shelf recess back", .304, 1.265, .017, 3.421, 1.899, .377, end_grain)
+framed_front("Dining-end tall cabinet door", .333, 1.177, 3.425, .6745, .600, teak, end_grain)
 
 # F01 shop sheet 21: 1,500 x 550 mm, counter at 950 mm, 810 mm raised pass.
-asset("social", "F01 Two-tier tiled island", 4.92, 5)
+asset("social", "F01 Two-tier tiled island", 4.66, 5.45)
 rotate(-90)
 for part in (-1, 1):
     x = -.665 if part == -1 else .145
@@ -330,8 +424,8 @@ for j in range(3):
         panel("Grid-panel island face", .311, .257, .016,
               -.163 + i * .316, .228 + j * .269, .244, teak)
 
-for i, z in enumerate((4.65, 5.24), 1):
-    asset("social", f"F02 Sculpted cognac stool {i}", 4.23, z)
+for i, z in enumerate((4.96, 5.66), 1):
+    asset("social", f"F02 Sculpted cognac stool {i}", 4.16, z)
     cushion("Contour saddle", .351, .326, .083, 0, .676, 0, ochre)
     shell = panel("Curved wrap backrest", .055, .25, .30, -.134, .791, 0, ochre, .026)
     shell.rotation_euler.y = .11
@@ -340,21 +434,34 @@ for i, z in enumerate((4.65, 5.24), 1):
             rod("Tapered steel leg", (x * 1.35, .012, z_leg * 1.32), (x, .644, z_leg), .011, dark, .018)
     rod("Footrest", (-.138, .26, -.134), (.139, .26, -.134), .012, dark)
 
-asset("social", "F05 Full-height bicycle joinery", .37, 4.19)
+asset("social", "F05 Full-height bicycle joinery", .331, 4.225)
 rotate(90)
-cabinet(.86, 2.01, .46, 2)
-asset("social", "F04 Slatted floating media credenza", 1.88, 4.06)
-cabinet(2.29, .34, .302, 3, base=.046)
-for i in range(6):
-    panel("Horizontal media ventilation slat", .64, .013, .018, 0, .14 + .021 * i, .165, end_grain, .002)
-asset("social", "F06 Teak panel beside living window", .190, 6.91)
-rotate(90)
-parent.scale.x = .72
-panel("Reeded timber backing", .88, 1.48, .033, 0, .74, -.048, teak)
-for x in (-.4, .4):
-    panel("Niche side return", .051, 1.48, .113, x, .74, .018, end_grain)
-for y in (.29, .66, 1.05):
-    panel("Display niche shelf", .76, .027, .13, 0, y, .023, teak)
+panel("Bicycle cabinet frame", .840, 2.610, .494, 0, 1.305, -.010, teak)
+for x in (-.199, .199):
+    for low, high in ((.014, .820), (.838, 1.653), (1.671, 2.578)):
+        framed_front("Baltimore teak bicycle door", .391, high - low, x, (high + low)/2, .243, teak, end_grain)
+    panel("Lower dark ventilation grille", .346, .73, .004, x, .418, .258, dark)
+    for i in range(10):
+        panel("Vertical bicycle ventilation slat", .014, .726, .008, x - .154 + i * .034, .418, .262, teak)
+
+asset("social", "F04 Slatted floating media credenza", 2.096, 3.952)
+panel("2300 mm media cabinet carcass", 2.3, .48, .274, 0, .24, -.013, teak)
+for x, w in ((-.785, .722), (0, .832), (.785, .722)):
+    framed_front("Teak media front", w, .363, x, .255, .138, teak, end_grain)
+    if x:
+        for y in (.185, .215):
+            panel("Side media vent", .447, .010, .004, x, y, .153, dark, .002)
+    else:
+        for y in (.183, .261, .338):
+            panel("Centre drawer reveal", .811, .006, .007, x, y, .155, end_grain, .001)
+
+asset("social", "F06 Teak backdrop at living-room return", .517, 7.153)
+rotate(180)
+panel("Full-height teak backdrop backing", .895, 2.610, .021, 0, 1.305, 0, end_grain)
+for col in range(3):
+    for row in range(9):
+        panel("Alternating teak veneer panel", .294, .286, .011,
+              (col - 1) * .298, .145 + row*.290, .012, teak, .001)
 asset("social", "Two-seat linen sofa outside guestroom", 1.98, 6.97)
 rotate(180)
 sofa_linen = material("Ivory woven sofa upholstery", (.66, .616, .541), .87)
@@ -411,7 +518,7 @@ def imported_bedding():
     bpy.ops.import_scene.gltf(filepath=str(ROOT / "assets/vendor/innerscene-queen.glb"))
     bpy.context.view_layer.update()
     imports = [ob for ob in bpy.data.objects if ob not in previous]
-    adapt = Matrix.Translation((0, -.018, .258 - .38 * .85)) @ Matrix.Diagonal((1.08, .952, .85, 1))
+    adapt = Matrix.Translation((0, -.018, .28 - .38 * .85)) @ Matrix.Diagonal((1.175, .952, .85, 1))
     specs = {
         "Nominal dimensioned mattress": ("Ivory cotton fitted mattress", (.84, .82, .77)),
         "Plump pillow with closed seams": ("Cotton percale tailored sham", (.88, .86, .82)),
@@ -462,123 +569,191 @@ def imported_bedding():
         raise RuntimeError(f"Expected four source bedding meshes, found {len(keep)}")
 
 
-# Main bedroom, headboard, upholstered bed and six custom joinery components.
-asset("bedroom", "F15–F16 Main bedroom upholstered platform", 2.22, 1.18)
+# Main bedroom. Furniture set-out on sheet 92 and sizes on sheets 98–113.
+asset("bedroom", "F15–F16 Main bedroom upholstered platform", 2.18, .951)
 main_bed = parent
-panel("Chamfered platform", 1.83, .208, 2.015, 0, .147, .01, teak, .026)
-panel("Shadow reveal plinth", 1.73, .08, 1.91, 0, .04, .012, end_grain, .012)
+panel("2080 by 2040 mm teak platform", 2.080, .252, 2.040, 0, .154, 0, teak, .014)
+panel("Shadow reveal plinth", 2.045, .064, 2.0, 0, .032, 0, end_grain, .010)
+for i in range(4):
+    panel("Push-release platform drawer front", .487, .182, .010, -.739 + i * .493, .147, 1.019, teak, .003)
 if not requested or "bedroom" in requested:
     imported_bedding()
-for x, yaw in ((-.42,-.10), (.42,.06)):
-    sewn_pillow("Olive accent cushion", .45, .245, .136, x + .012, .579, -.481, -yaw, .38, olive_cloth, olive_thread)
-panel("Terracotta headboard backing", 2.16, .557, .067, .165, .326, -1.081, rust, .01)
-for i in range(7):
-    panel("Upholstered headboard panel", .299, .376, .036, -.755 + .307 * i, .34, -1.038, fabric, .018)
-panel("Headboard cap", 2.16, .036, .092, .165, .616, -1.071, teak)
-panel("Recessed terracotta accent", 2.05, .110, .016, .165, .543, -1.017, rust)
-panel("Recessed warm lighting", 2.09, .009, .015, .165, .591, -1.025, led)
-asset("bedroom", "F17 Accessory cabinet", .65, .48)
-rotate(90)
-cabinet(.555, 1.62, .403, 1)
-asset("bedroom", "F18–F19 Side vanity and sliding mirror", .65, 1.35)
-rotate(90)
-cabinet(.875, .66, .412, 2, base=.076)
-panel("Vanity surface", .913, .039, .446, 0, .68, .005, stone, .009)
-panel("Slim mirror frame", .67, .591, .036, 0, 1.031, -.182, brass, .009)
-panel("Sliding mirror inset", .636, .557, .013, 0, 1.031, -.16, mirror, .005)
-asset("bedroom", "F20 Illuminated bag shelves", .59, 3.37)
-rotate(180)
-cabinet(.515, 1.80, .374, 6, open_shelves=True)
-asset("bedroom", "F21 Display and low media cabinetry", 2.1, 3.36)
-rotate(180)
-cabinet(2.29, .414, .385, 5)
-for y in (1.52, 1.78, 2.04):
-    panel("Illuminated full-width upper display ledge", 2.22, .025, .288, 0, y, -.02, teak)
-    panel("Concealed warm strip beneath display ledge", 2.15, .009, .009, 0, y-.017, .094, led)
-panel("Granite cabinet top", 2.31, .029, .411, 0, .425, 0, stone)
-for x in (-1.128, -.706):
-    panel("Tall display tower side", .018, 1.11, .344, x, .978, 0, teak)
+for x, yaw in ((-.45,-.10), (.45,.06)):
+    sewn_pillow("Olive accent cushion", .45, .245, .136, x + .012, .601, -.481, -yaw, .38, olive_cloth, olive_thread)
+panel("Baltimore teak headboard backing", 2.625, 1.200, .054, .117, .600, -1.071, teak, .008)
 for i in range(4):
-    y = .57 + .272 * i
-    panel("Open display shelf", .403, .019, .343, -.917, y, 0, teak)
-    panel("Warm shelf lighting", .393, .009, .008, -.917, y - .013, .149, led)
-panel("Teak display back", .426, 1.11, .016, -.917, .978, -.165, end_grain)
+    panel("Avena Linen headboard panel", .562, .849, .018, -.867 + .566*i, .456, -1.038, fabric, .005)
+for x in (-.586, -.020, .546):
+    panel("Headboard gold T-section", .003, .848, .005, x, .456, -1.027, brass, .001)
+panel("Headboard teak cap", 2.625, .041, .072, .117, 1.181, -1.062, teak)
+panel("Recessed 3500 K headboard lighting", 2.55, .009, .015, .117, .899, -1.038, led)
 
-# Working room, F08-F12.
-asset("work", "F08–F09 Storage daybed", 2.82, 9.87)
+asset("bedroom", "F17 Accessory cabinet", .382, .4475)
+rotate(90)
+panel("Full-height accessory cabinet frame", .789, 2.610, .372, 0, 1.305, -.014, teak)
+for x in (-.191, .191):
+    for y, h in ((.412, .720), (1.692, 1.761)):
+        framed_front("Accessory cabinet teak door", .378, h, x, y, .187, teak, end_grain)
+    rod("Gold accessory cabinet knob", (x*.2, .738, .202), (x*.2, .738, .218), .010, brass)
+
+asset("bedroom", "F18–F19 Side vanity and sliding mirror", .382, 1.429)
+rotate(90)
+for x in (-.561, .561):
+    panel("Vanity side support", .043, .780, .382, x, .390, -.003, teak)
+    panel("Vanity brass toe strip", .039, .013, .358, x, .011, .012, brass, .002)
+for x in (-.291, .291):
+    panel("Teak vanity drawer", .573, .185, .356, x, .684, .002, teak)
+    rod("Gold vanity pull", (x-.032, .738, .183), (x+.032, .738, .183), .009, brass)
+panel("1165 mm Avena Linen vanity surface", 1.165, .022, .400, 0, .789, 0, fabric, .006)
+panel("Slim sliding mirror frame", .700, 1.618, .030, -.19, 1.614, -.270, dark, .006)
+panel("Sliding mirror inset", .674, 1.589, .006, -.19, 1.614, -.253, mirror, .004)
+panel("Sliding mirror rail", 1.165, .020, .027, 0, 2.435, -.270, dark, .003)
+
+asset("bedroom", "F20 Illuminated bag cabinet", .680, 3.425)
+rotate(180)
+panel("1000 mm bag cabinet back", 1.000, 2.610, .024, 0, 1.305, -.178, teak)
+for x in (-.489, .489):
+    panel("Bag cabinet teak side", .022, 2.610, .38, x, 1.305, 0, teak)
+panel("Bag cabinet teak lower doors", .950, .48, .035, 0, .292, .173, teak)
+panel("Terracotta display niche", .952, .227, .015, 0, .65, -.139, rust)
+for y in (.525, .772, 1.195, 1.632, 2.07, 2.568):
+    panel("Lit bag shelf", .953, .028, .368, 0, y, -.003, teak)
+    if y > 1:
+        panel("3500 K bag shelf LED", .944, .007, .012, 0, y - .019, .093, led, .001)
+for x in (-.242, .242):
+    panel("Tempered bag cupboard glazing", .460, 1.747, .008, x, 1.672, .186, glass, .001)
+    for dx in (-.232, .232):
+        panel("Gold cabinet door stile", .012, 1.762, .015, x+dx, 1.671, .192, brass, .002)
+    for y in (.793, 2.548):
+        panel("Gold cabinet door rail", .474, .012, .015, x, y, .192, brass, .002)
+
+asset("bedroom", "F21 Display and low media cabinetry", 2.083, 3.404)
+rotate(180)
+cabinet(1.800, .769, .422, 4, base=.050)
+panel("1800 mm Avena Linen display cabinet top", 1.8, .03, .45, 0, .785, 0, fabric, .009)
+for x in (-.882, .882):
+    panel("Full-height display framing", .035, 1.781, .25, x, 1.6905, -.094, teak)
+for y in (1.829, 2.196, 2.563):
+    panel("Upper cabinet shelf", 1.730, .043, .250, 0, y, -.094, teak)
+    panel("Concealed warm upper shelf strip", 1.714, .007, .009, 0, y - .026, .004, led, .001)
+    panel("Gold upper cabinet shelf edge", 1.730, .006, .007, 0, y, .033, brass, .001)
+panel("Display cabinet teak back", 1.73, .751, .016, 0, 2.201, -.212, teak)
+for x in (-.438, .438):
+    panel("Teak display divider", .020, .701, .233, x, 2.197, -.094, teak)
+
+# Working room, sheets 60–78. The F10 cupboard fits the diagonal return.
+asset("work", "F09 Storage daybed", 2.916, 9.873)
 rotate(-90)
-cabinet(1.12, .307, 1.84, 2, base=.063)
-panel("Daybed mattress with fitted sheet", 1.08, .147, 1.78, 0, .381, 0, cotton, .033)
-drape("White tailored daybed coverlet", 1.174, -.375, .921, 1.08, .882, .459, .104)
-sewn_pillow("Daybed white sham", .68, .345, .119, -.12, .51, -.66, -.11, .22, cotton, cotton_thread)
-sewn_pillow("Daybed olive cushion", .42, .273, .12, .174, .558, -.493, .12, .34, olive_cloth, olive_thread)
-panel("Headboard panel", 1.22, .76, .049, 0, .38, -.968, teak, .011)
-asset("work", "F10 Olive working-room storage", 1.20, 8.88)
-rotate(90)
-cabinet(.567, 1.81, .36, 2, olive)
-asset("work", "F11 Slim desk and task ledge", 1.40, 9.55)
-rotate(90)
-panel("Eased desk surface", .558, .046, .406, 0, .741, 0, teak, .014)
-panel("Shallow stationery drawer", .483, .062, .350, 0, .679, -.008, end_grain)
-for x in (-.233, .233):
-    rod("Slim desk support", (x, .028, .145), (x, .712, .12), .012, dark)
-asset("work", "F12 Scarlet Kitkat mosaic backdrop", 3.02, 10.77)
-panel("Tile backing", .85, 1.04, .023, 0, .52, .003, grout)
-for x in range(14):
-    for y in range(4):
-        panel("Glazed vertical Kitkat mosaic", .055, .239, .010,
-              -.39 + .06*x, .132 + .254*y, -.015, rust, .003)
+panel("2040 by 1240 mm teak daybed platform", 1.240, .300, 2.040, 0, .150, 0, teak, .012)
+for x in (-.411, 0, .411):
+    panel("Teak storage drawer", .394, .233, .016, x, .150, 1.017, teak, .004)
+panel("Daybed mattress with fitted sheet", 1.19, .163, 1.959, 0, .378, -.006, cotton, .031)
+drape("White tailored daybed coverlet", 1.235, -.393, .986, 1.184, .956, .470, .123)
+sewn_pillow("Daybed white sham", .68, .345, .119, -.12, .517, -.686, -.11, .22, cotton, cotton_thread)
+sewn_pillow("Daybed olive cushion", .42, .273, .12, .174, .563, -.501, .12, .34, olive_cloth, olive_thread)
+asset("work", "F08 Full-height daybed backdrop", 2.916, 9.873)
+rotate(-90)
+for i in range(3):
+    panel("Full-height teak headboard backdrop", .563, 2.609, .022, -.835 + i*.565, 1.3045, -1.033, teak, .004)
+    for y in (.693, 1.958):
+        panel("Recessed square frame joint", .558, .009, .004, -.835 + i*.565, y, -1.021, end_grain, .001)
 
-# Bathroom. Sculpted vitreous fixtures and tiled shower recess.
-asset("bath", "F13–F14 Wall vanity and mirror", 4.18, .46)
-panel("Floating vanity carcass", .647, .325, .402, 0, .553, 0, teak)
-panel("Undermount vanity top", .657, .043, .431, 0, .735, 0, stone, .01)
-for x in (-.159, .159):
-    panel("Vanity doors", .304, .279, .015, x, .56, .203, teak)
-    rod("Half-moon brass pull", (x - .025, .638, .221), (x + .025, .638, .221), .012, brass)
-rings("Shaped ceramic basin", (0, .757, .02), [
-    (0, .16, .108), (.038, .222, .145), (.060, .221, .145),
-    (.060, .193, .125), (.018, .151, .103),
+asset("work", "F10 Angled working-room storage", .983, 9.778)
+work_storage_shape = [(0, 0), (.894, 0), (.894, .852), (.014, .008)]
+for base, height in ((.001, .104), (.730, .027), (1.377, .032), (1.605, .029), (2.568, .041)):
+    joinery_prism("Angled fitted cupboard shelf", work_storage_shape, base, height, olive)
+joinery_prism("Triangular teak storage back", [(0, 0), (.894, .827), (.894, .852), (.014, .008)],
+              .105, 2.463, teak)
+panel("Teak cupboard side", .019, 2.499, .837, .884, 1.350, .423, teak)
+for x in (.207, .615):
+    for y, h in ((.378, .472), (2.107, .922)):
+        framed_front("Moccasin Ivory working-room doors", .397, h, x, y, -.010, marshmallow, teak)
+    rod("Round gold working-room cabinet knob", (x, 1.70, -.024), (x, 1.70, -.043), .010, brass)
+panel("Moccasin Ivory drop-down flap", .79, .176, .018, .411, .659, -.010, marshmallow)
+for y in (1.36, 1.59):
+    panel("3500 K working-room cupboard LED", .773, .007, .014, .411, y, .040, led, .001)
+
+asset("work", "F11 Wall-mounted work desk", 1.180, 9.258)
+rotate(90)
+panel("980 by 400 mm Thyme Rhythm desktop", .980, .040, .400, 0, .783, 0, olive, .006)
+for x in (-.245, .245):
+    panel("Moccasin Ivory desk drawer", .485, .158, .385, x, .684, -.002, marshmallow, .004)
+panel("Recessed desk cable upstand", .65, .10, .013, -.115, .851, -.191, teak)
+
+asset("work", "F12 Scarlet Kitkat mosaic reveal", .967, 9.591)
+rotate(90)
+panel("Full-height mosaic backing", .330, 2.610, .013, 0, 1.305, 0, grout, .001)
+for col in range(8):
+    for row in range(16):
+        panel("Scarlet Kitkat mosaic tile", .039, .158, .004,
+              -.144 + .041*col, .0815 + .163*row, .008, rust, 0)
+
+asset("work", "P03 Sliding panel above the daybed", 2.801, 10.554)
+rotate(180)
+panel("Recessed teak sliding panel surround", 1.736, 1.943, .044, 0, 1.6215, -.018, teak)
+for x in (-.284, .284):
+    panel("Moccasin Ivory sliding panel", .563, 1.836, .024, x, 1.628, .015, marshmallow, .006)
+    rod("Recessed brushed gold sliding pull", (x + .232, 1.56, .027),
+        (x + .232, 1.77, .027), .006, brass)
+
+# Bathroom set-out from sheet 80. The F14 vertical rack is on the F13 vanity's left.
+asset("bath", "F13–F14 Wall vanity and shelf", 4.170, .318)
+panel("758 mm floating vanity carcass", .738, .598, .469, 0, .399, -.012, teak)
+panel("758 by 500 mm Amarillo vanity top", .758, .102, .500, 0, .75, 0, stone, .006)
+panel("Amarillo upstand", .758, .15, .019, 0, .875, -.239, stone, .004)
+panel("Teak vanity door", .411, .582, .026, .164, .399, .226, teak)
+rod("Half-moon brass vanity pull", (.134, .668, .245), (.194, .668, .245), .012, brass)
+for y in (.115, .397, .671):
+    panel("Inset vanity towel shelf", .222, .024, .065, -.192, y, .225, teak)
+rings("Shaped ceramic vanity basin", (.095, .803, .018), [
+    (0, .16, .104), (.038, .218, .14), (.054, .217, .139), (.054, .187, .117), (.015, .144, .095),
 ], ceramic)
-rod("Basin tap", (.006, .76, -.147), (.006, .917, -.147), .013, brass)
-rod("Basin spout", (.006, .915, -.145), (.006, .896, -.077), .011, brass)
-panel("Mirror with metal surround", .385, .489, .022, .07, 1.116, -.178, brass, .009)
-panel("Mirror face", .366, .47, .014, .07, 1.116, -.162, mirror, .008)
-for y in (.943, 1.134):
-    panel("Side display ledge", .111, .021, .182, -.250, y, -.058, teak)
-asset("bath", "Tiled shower and glass screen", 5.25, .73)
-panel("Stone shower tray", .766, .062, .68, 0, .031, 0, stone, .01)
-panel("Tile backing", .748, 1.44, .021, 0, .72, -.326, grout)
-for x in range(6):
-    for y in range(8):
-        panel("Green glazed shower tile", .119, .173, .013,
-              -.305 + .122*x, .093 + .178*y, -.311, green_tile, .003)
-panel("Bevelled glass screen", .011, 1.32, .587, .378, .704, -.008, glass, .003)
-rod("Screen brass profile", (.386, .052, .279), (.386, 1.378, .279), .009, brass)
-rod("Shower riser", (.207, .73, -.285), (.207, 1.344, -.285), .012, brass)
-rod("Shower arm", (.207, 1.344, -.285), (.207, 1.344, -.178), .012, brass)
-rings("Rain head", (.207, 1.327, -.172), [(0, .072, .072), (.018, .066, .066)], brass)
-asset("bath", "Sculpted vitreous WC", 5.71, 1.72)
-rings("Sculpted pedestal and bowl", (-.057, .028, 0), [
-    (0, .15, .104), (.09, .166, .112), (.19, .17, .124), (.27, .235, .178),
-    (.335, .248, .184), (.367, .240, .181), (.367, .177, .133), (.238, .123, .081),
+rod("Basin tap", (.095, .801, -.168), (.095, .982, -.168), .013, brass)
+rod("Basin spout", (.095, .979, -.168), (.095, .961, -.080), .011, brass)
+panel("49 cm F14 wall shelf back", .022, 1.63, .490, -.363, 1.622, -.002, teak)
+for z in (-.237, .235):
+    panel("F14 slim teak shelf frame", .115, 1.63, .019, -.316, 1.622, z, teak)
+for i in range(5):
+    y = .817 + i*.402
+    panel("F14 recessed shelf", .115, .020, .450, -.316, y, -.002, teak)
+    if i:
+        rod("F14 slim brass retainer", (-.264, y-.338, -.225), (-.264, y-.338, .223), .005, brass)
+
+asset("bath", "Tiled shower and glass screen", 5.183, .815)
+panel("Stone shower tray", .917, .048, .838, 0, .024, 0, stone, .009)
+panel("Shower mosaic back", .923, 2.355, .025, 0, 1.18, -.425, grout)
+for x in range(15):
+    for y in range(12):
+        panel("Vertical glazed shower mosaic", .057, .191, .009,
+              -.429 + .061*x, .099 + .196*y, -.409, green_tile, 0)
+panel("Clear front shower screen", .386, 2.18, .011, -.272, 1.101, .420, glass, .003)
+rod("Shower brass profile", (-.079, .014, .421), (-.079, 2.185, .421), .009, brass)
+rod("Shower riser", (.217, .824, -.381), (.217, 2.002, -.381), .012, brass)
+rod("Shower arm", (.217, 2.002, -.381), (.217, 2.002, -.201), .012, brass)
+rings("Rain head", (.217, 1.984, -.198), [(0, .096, .096), (.018, .089, .089)], brass)
+asset("bath", "Sculpted vitreous WC", 5.727, 1.718)
+rings("Sculpted pedestal and bowl", (-.075, .028, 0), [
+    (0, .167, .105), (.09, .186, .112), (.19, .191, .124), (.27, .255, .178),
+    (.335, .272, .184), (.367, .266, .181), (.367, .177, .133), (.238, .123, .081),
 ], ceramic)
-rings("Rounded seat ring", (-.066, .396, 0), [(0, .236, .180), (.027, .23, .175), (.028, .183, .138), (0, .18, .135)], white)
-panel("Soft-close concealed cistern", .126, .465, .367, .177, .246, 0, ceramic, .028)
+rings("Rounded seat ring", (-.080, .396, 0), [(0, .257, .180), (.027, .251, .175), (.027, .183, .138), (0, .183, .135)], white)
+panel("Soft-close concealed cistern", .126, .465, .367, .183, .246, 0, ceramic, .028)
 
 # Bake modifiers and batch same-material meshes per assembly so WebGL can render efficiently.
 bpy.context.view_layer.update()
 for room, assemblies in room_nodes.items():
     if requested and room not in requested:
         continue
+    bpy.ops.object.select_all(action="DESELECT")
     for assembly in assemblies:
         by_material = {}
         for obj in list(assembly.children):
-            bpy.ops.object.select_all(action="DESELECT")
-            bpy.context.view_layer.objects.active = obj
-            obj.select_set(True)
-            for modifier in list(obj.modifiers):
-                bpy.ops.object.modifier_apply(modifier=modifier.name)
+            if obj.modifiers:
+                bpy.context.view_layer.objects.active = obj
+                obj.select_set(True)
+                for modifier in list(obj.modifiers):
+                    bpy.ops.object.modifier_apply(modifier=modifier.name)
+                obj.select_set(False)
             by_material.setdefault(obj.data.materials[0].name, []).append(obj)
         for same_material in by_material.values():
             if len(same_material) < 2:

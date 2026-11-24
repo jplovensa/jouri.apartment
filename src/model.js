@@ -228,11 +228,15 @@ export function makeApartment() {
       const bounds = new THREE.Box3();
       function record(object) {
         bounds.setFromObject(object);
-        if (bounds.min.y >= 1.77 || bounds.max.y <= .025) return;
+        if (bounds.min.y >= 1.77 || bounds.max.y <= .055) return;
         obstacles.push({ minX: bounds.min.x, minZ: bounds.min.z, maxX: bounds.max.x, maxZ: bounds.max.z });
       }
       for (const scene of fixtures.children) {
-        if (scene.name !== 'doors') scene.children.forEach(record);
+        if (scene.name === 'doors') continue;
+        for (const asset of scene.children) {
+          if (asset.name.startsWith('Tiled_shower')) asset.children.forEach(record);
+          else record(asset);
+        }
       }
       closet.traverse((item) => { if (item.isMesh) record(item); });
       openLeaves.children.forEach(record);
