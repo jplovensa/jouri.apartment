@@ -204,12 +204,12 @@ function initialise() {
   const environment = new RoomEnvironment();
   const pmrem = new THREE.PMREMGenerator(renderer);
   scene.environment = pmrem.fromScene(environment, .12).texture;
-  scene.environmentIntensity = .70;
+  scene.environmentIntensity = .57;
   environment.dispose();
   pmrem.dispose();
   const model = makeApartment();
   scene.add(model.root);
-  scene.add(new THREE.HemisphereLight('#f4f7ff', '#b9a999', .83));
+  scene.add(new THREE.HemisphereLight('#f4f7ff', '#ac9b88', .72));
   const sun = new THREE.DirectionalLight('#fff3df', 2.05);
   sun.position.set(-10, 8.2, 3.2);
   sun.target.position.set(3, 0, 5.5);
@@ -224,8 +224,8 @@ function initialise() {
   scene.add(sun, sun.target);
   // Low-intensity cool fill suggests bounced daylight at the two facade windows.
   for (const z of [1.36, 5.58]) {
-    const bounce = new THREE.PointLight('#e6efff', 3.8, 4.2, 2);
-    bounce.position.set(.38, 1.68, z);
+    const bounce = new THREE.PointLight('#e9f0fb', .94, 4.4, 2);
+    bounce.position.set(.88, 1.94, z);
     scene.add(bounce);
   }
   const lampPositions = [

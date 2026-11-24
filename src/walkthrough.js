@@ -12,7 +12,8 @@ export function makeWalkthrough({ plan, camera, viewport, canvas, panel, render,
   const pressed = new Map();
   let position;
   let yaw = 0;
-  let pitch = -.05;
+  const initialPitch = -.15;
+  let pitch = initialPitch;
   let active = false;
   let previous = 0;
   let animation = 0;
@@ -122,7 +123,7 @@ export function makeWalkthrough({ plan, camera, viewport, canvas, panel, render,
     if (!start) return false;
     position = start;
     yaw = start.yaw;
-    pitch = -.05;
+    pitch = initialPitch;
     sync();
     return true;
   }

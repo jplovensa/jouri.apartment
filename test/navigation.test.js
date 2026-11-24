@@ -5,8 +5,10 @@ import { createWalkSpace } from '../src/navigation.js';
 
 test('walking crosses room thresholds and stops at walls and the apartment boundary', () => {
   const space = createWalkSpace(plan);
-  assert.equal(space.roomAt(...Object.values(space.move({ x: 3.4, z: 2.7 }, .7, 0))), 'kitchen');
-  assert.equal(space.roomAt(...Object.values(space.move({ x: 3.4, z: 1.7 }, .7, 0))), 'master');
+  const crossed = space.move({ x: 3.4, z: 2.7 }, .7, 0);
+  assert.equal(space.roomAt(crossed.x, crossed.z), 'kitchen');
+  const blocked = space.move({ x: 3.4, z: 1.7 }, .7, 0);
+  assert.equal(space.roomAt(blocked.x, blocked.z), 'master');
   const outside = space.move(space.start('entry'), 2, 0);
   assert.equal(space.roomAt(outside.x, outside.z), 'dining');
   for (const { id } of plan.zones) {

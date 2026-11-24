@@ -116,6 +116,11 @@ export function makeApartment() {
   }
   closetShell.position.copy(closet.position);
   closetShell.rotation.copy(closet.rotation);
+  const walkCeiling = box(6.27, .09, 12, 3.135, CLOSET.height + .045, 5.75, ceilingPaint);
+  walkCeiling.castShadow = true;
+  walkCeiling.receiveShadow = true;
+  walkCeiling.visible = false;
+  shell.add(walkCeiling);
   const floors = new Map();
   for (const { id, points } of plan.zones) {
     const room = ROOMS[id];
@@ -225,10 +230,8 @@ export function makeApartment() {
       windows.visible = visible && !closetView;
       doors.visible = visible && !closetView;
       closetShell.visible = visible && closetView;
-      for (const [room, ceiling] of ceilings) {
-        ceiling.visible = visible && (walking || room === roomView);
-        ceiling.castShadow = walking;
-      }
+      walkCeiling.visible = visible && walking;
+      for (const [room, ceiling] of ceilings) ceiling.visible = visible && !walking && room === roomView;
     },
     focusCloset(isDetail, showClearance = false) {
       shell.visible = fixtures.visible = !isDetail;
