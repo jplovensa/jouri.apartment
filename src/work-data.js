@@ -33,7 +33,7 @@ const estimatePins = [
   ['M03', 'master', .25, 1.6],
   ['M03', 'living', .29, 6.07],
   ['M03', 'work', 1.23, 8.65],
-  ['M04', 'bath', 5.55, 1.75],
+  ['M04', 'bath', 5.92, 1.70, 'Survey the existing water-heater cable at the toilet alcove. Confirm the actual route on site.'],
   ['M05', 'wic', 5.68, 8.35],
 ];
 

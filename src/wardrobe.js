@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { Reflector } from 'three/addons/objects/Reflector.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 
 export const CLOSET = { width: 2.022, depth: 2.157, height: 2.61 };
@@ -14,6 +15,36 @@ export const JOINERY = [
   ['C01 · Four-drawer cabinet', 'Rear right. 900 × 400 × 900 mm.'],
   ['S01 · Open shoe rack', 'Left of the entrance. 1,216 × 350 × 2,610 mm. Nine levels per column.'],
 ];
+
+export function makeWardrobeMirror(placement) {
+  const { width, depth, height } = CLOSET;
+  const wall = new THREE.Group();
+  wall.name = 'Full-height wardrobe mirror';
+  wall.position.set(placement.x, 0, placement.z);
+  wall.rotation.y = placement.rotation;
+
+  const glass = new THREE.PlaneGeometry(depth - .006, height - .006);
+  const silver = new THREE.Mesh(glass, new THREE.MeshStandardMaterial({
+    color: '#b9c5c8', metalness: .92, roughness: .17,
+  }));
+  const reflection = new Reflector(glass, {
+    color: 0xb9bcbf, textureWidth: 640, textureHeight: 640, multisample: 0, clipBias: .001,
+  });
+
+  for (const surface of [silver, reflection]) {
+    surface.position.set(width - .016, height / 2, depth / 2);
+    surface.rotation.y = -Math.PI / 2;
+    wall.add(surface);
+  }
+  return {
+    wall,
+    show(visible, live) {
+      wall.visible = visible;
+      silver.visible = !live;
+      reflection.visible = live;
+    },
+  };
+}
 
 export function makeWardrobe(box, placement, material) {
   const root = new THREE.Group();

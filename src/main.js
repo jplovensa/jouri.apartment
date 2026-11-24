@@ -29,7 +29,9 @@ function element(tag, content) {
 const interiorShots = {
   master: [[3.28, 1.47, 2.95], [1.91, .72, .96]],
   work: [[2.72, 1.44, 8.04], [2.38, 1.03, 9.89]],
-  bath: [[4.17, 1.36, 1.99], [5.13, .85, .92]],
+  bath: [[4.17, 1.43, 1.99], [5.13, 1.18, 1.07]],
+  toilet: [[3.91, 1.48, 1.96], [5.96, 1.23, 1.68]],
+  wic: [[5.70, 1.48, 8.37], [4.16, 1.29, 9.12]],
   kitchen: [[3.91, 1.52, 3.85], [5.88, 1.32, 4.07]],
   dining: [[3.17, 1.53, 6.32], [5.35, 1.15, 5.04]],
   living: [[3.48, 1.45, 5.58], [.65, 1.12, 5.80]],
@@ -38,12 +40,12 @@ const interiorShots = {
 
 const roomNotes = {
   master: 'Teak platform, ivory bedding and a two-panel window on the balcony wall. The bed GLB includes the fitted frame and bedding.',
-  bath: 'Vanity, shower and sanitary fittings follow the render as visual references.',
+  bath: 'The toilet alcove has an olive-tiled ledge and the existing wall-mounted water heater. M04 marks the area for the cable-tidying survey.',
   kitchen: 'Olive base units and Amarillo granite lead to the refrigerator in the 589 mm F3 bay between the dispenser and the lit end cabinet.',
   dining: 'The 1,500 × 550 mm island has a raised Amarillo pass and two stools on the living-room side. The door position follows the traced opening, with a provisional leaf height and hardware.',
   living: 'Three-panel facade window, Baltimore teak joinery and a two-seat sofa beside the guestroom. P1 is ribbed teak. P2 has display shelves, gold retainers and a Marshmallow White reverse.',
-  work: 'Angled alcove with daybed, fitted storage and a desk.',
-  wic: `2,022 × 2,157 mm bay · 2,610 mm ceiling. Proposed ${RAIL_CLEARANCE_MM} mm rail-to-rack gap. The shaded zone leaves ${STANDING_DEPTH_MM} mm in front of the rack after a ${GARMENT_ALLOWANCE_MM} mm clothing allowance. Check this tighter standing space on site.`,
+  work: 'Daybed and wall-mounted desk, with a plain wall facing the bed.',
+  wic: `2,022 × 2,157 mm bay · 2,610 mm ceiling. Full-height mirror opposite the hanging rails. Proposed ${RAIL_CLEARANCE_MM} mm rail-to-rack gap. The shaded zone leaves ${STANDING_DEPTH_MM} mm in front of the rack after a ${GARMENT_ALLOWANCE_MM} mm clothing allowance. Check this tighter standing space on site.`,
 };
 
 const references = {
@@ -73,9 +75,10 @@ $('next-reference').addEventListener('click', () => {
 function selectRoom(id) {
   selection = id;
   $('focus-doors').hidden = id !== 'living' || !sceneView;
+  $('focus-toilet').hidden = id !== 'bath' || !sceneView;
   $('focus-entry').hidden = id !== 'dining' || !sceneView;
   $('bed-download').hidden = id !== 'master';
-  $('focus-room').hidden = !id || id === 'wic' || !sceneView;
+  $('focus-room').hidden = !id || !sceneView;
   referenceIndex = 0;
   renderReference();
   $('room-title').textContent = ROOMS[id]?.name ?? 'Apartment overview';
@@ -136,7 +139,7 @@ for (const [id, { name, color }] of Object.entries(ROOMS)) {
 for (const [name, detail] of JOINERY) $('joinery').append(element('dt', name), element('dd', detail));
 for (const button of viewButtons) button.addEventListener('click', () => setView(button.dataset.view));
 $('focus-room').addEventListener('click', () => {
-  if (!selection || selection === 'wic') return;
+  if (!selection) return;
   setView('orbit');
   focusedRoom = selection;
   sceneView?.frame();
@@ -147,6 +150,13 @@ $('focus-doors').addEventListener('click', () => {
   focusedRoom = 'doors';
   referenceIndex = 2;
   renderReference();
+  sceneView?.frame();
+  viewport.scrollIntoView({ block: 'center' });
+});
+$('focus-toilet').addEventListener('click', () => {
+  setView('orbit');
+  focusedRoom = 'toilet';
+  interiorWallsVisible = true;
   sceneView?.frame();
   viewport.scrollIntoView({ block: 'center' });
 });
@@ -165,7 +175,8 @@ function updateWallVisibility(model) {
     option.disabled = isWalkView();
     option.setAttribute('aria-pressed', String(visible === (option.dataset.walls === 'on')));
   }
-  model?.showWalls(visible, isClosetView(), isInterior ? (focusedRoom === 'entry' ? 'dining' : focusedRoom) : undefined);
+  const enclosingRoom = { entry: 'dining', toilet: 'bath' }[focusedRoom] ?? focusedRoom;
+  model?.showWalls(visible, isClosetView(), isInterior ? enclosingRoom : undefined);
 }
 
 for (const button of wallButtons) button.addEventListener('click', () => {
@@ -231,7 +242,7 @@ function initialise() {
   const lampPositions = [
     [5.81, 1.39, 3.0, .66], [5.80, 1.39, 3.78, .71], [5.61, 1.94, 5.65, .31],
     [1.69, .92, .07, .24], [2.28, .92, .07, .33],
-    [2.90, .92, .07, .24], [2.27, 1.73, 3.22, 1.15], [4.42, 1.36, .51, .88],
+    [2.90, .92, .07, .24], [2.27, 1.73, 3.22, 1.15], [4.42, 1.36, .51, .88], [5.61, 2.34, 1.71, .72],
   ];
   for (const [x, y, z, intensity] of lampPositions) {
     const bounce = new THREE.PointLight('#ffcf9d', intensity, 1.2, 2);

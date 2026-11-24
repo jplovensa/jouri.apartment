@@ -6,7 +6,8 @@ export const FURNITURE_PACKS = ['social', 'doors', 'bedroom', 'work', 'bath'];
 export async function loadFurnishings(group) {
   const loader = new GLTFLoader();
   const results = await Promise.allSettled(FURNITURE_PACKS.map(async (room) => {
-    const relativePath = `${import.meta.env.BASE_URL}models/${room}.glb?v=furniture-setout`;
+    const revision = room === 'bath' || room === 'work' ? 'alcove-and-plain-wall' : 'furniture-setout';
+    const relativePath = `${import.meta.env.BASE_URL}models/${room}.glb?v=${revision}`;
     const { scene } = await loader.loadAsync(relativePath);
     scene.name = room;
     scene.traverse((node) => {

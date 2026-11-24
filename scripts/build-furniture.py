@@ -641,7 +641,7 @@ panel("Display cabinet teak back", 1.73, .751, .016, 0, 2.201, -.212, teak)
 for x in (-.438, .438):
     panel("Teak display divider", .020, .701, .233, x, 2.197, -.094, teak)
 
-# Working room, sheets 60–78. The F10 cupboard fits the diagonal return.
+# Working room, sheets 60–78. The wall facing the daybed is kept plain.
 asset("work", "F09 Storage daybed", 2.916, 9.873)
 rotate(-90)
 panel("2040 by 1240 mm teak daybed platform", 1.240, .300, 2.040, 0, .150, 0, teak, .012)
@@ -657,21 +657,6 @@ for i in range(3):
     panel("Full-height teak headboard backdrop", .563, 2.609, .022, -.835 + i*.565, 1.3045, -1.033, teak, .004)
     for y in (.693, 1.958):
         panel("Recessed square frame joint", .558, .009, .004, -.835 + i*.565, y, -1.021, end_grain, .001)
-
-asset("work", "F10 Angled working-room storage", .983, 9.778)
-work_storage_shape = [(0, 0), (.894, 0), (.894, .852), (.014, .008)]
-for base, height in ((.001, .104), (.730, .027), (1.377, .032), (1.605, .029), (2.568, .041)):
-    joinery_prism("Angled fitted cupboard shelf", work_storage_shape, base, height, olive)
-joinery_prism("Triangular teak storage back", [(0, 0), (.894, .827), (.894, .852), (.014, .008)],
-              .105, 2.463, teak)
-panel("Teak cupboard side", .019, 2.499, .837, .884, 1.350, .423, teak)
-for x in (.207, .615):
-    for y, h in ((.378, .472), (2.107, .922)):
-        framed_front("Moccasin Ivory working-room doors", .397, h, x, y, -.010, marshmallow, teak)
-    rod("Round gold working-room cabinet knob", (x, 1.70, -.024), (x, 1.70, -.043), .010, brass)
-panel("Moccasin Ivory drop-down flap", .79, .176, .018, .411, .659, -.010, marshmallow)
-for y in (1.36, 1.59):
-    panel("3500 K working-room cupboard LED", .773, .007, .014, .411, y, .040, led, .001)
 
 asset("work", "F11 Wall-mounted work desk", 1.180, 9.258)
 rotate(90)
@@ -731,13 +716,60 @@ rod("Shower brass profile", (-.079, .014, .421), (-.079, 2.185, .421), .009, bra
 rod("Shower riser", (.217, .824, -.381), (.217, 2.002, -.381), .012, brass)
 rod("Shower arm", (.217, 2.002, -.381), (.217, 2.002, -.201), .012, brass)
 rings("Rain head", (.217, 1.984, -.198), [(0, .096, .096), (.018, .089, .089)], brass)
-asset("bath", "Sculpted vitreous WC", 5.727, 1.718)
+# Sheet 80 locates the 150 mm ledge behind the WC. Heights and heater finish
+# are modelled from Preview 8, as the appliance itself is an existing fixture.
+asset("bath", "Toilet alcove and existing water heater", 5.727, 1.718)
+alcove_grout = material("Muted grout behind WC tile", (.112, .123, .090))
+heater_enamel = material("Warm white heater enamel", (.83, .84, .805), .38)
+heater_control = material("Smoked heater controls", (.049, .037, .025), .33)
+cold = material("Cold blue water port", (.018, .072, .23))
+hot = material("Hot red water port", (.35, .024, .027))
+panel("150 mm concealed cistern wall", .151, .955, .779, .316, .4775, -.009, alcove_grout, .002)
+panel("Dark olive tile cap behind toilet", .152, .018, .779, .316, .964, -.009, green_tile, .002)
+for col in range(29):
+    for row in range(8):
+        panel("Vertical olive mosaic behind WC", .008, .117, .024, .239,
+              .059 + row * .119, -.386 + col * .027, green_tile, 0)
+panel("Concealed WC flush plate", .009, .09, .151, .230, .787, 0, mirror, .004)
+for z in (-.034, .028):
+    panel("Flush plate inset", .007, .055, .043, .224, .787, z, dark, .004)
+
+panel("Rounded existing water heater", .282, .382, .523, .244, 2.145, -.007, heater_enamel, .084)
+panel("Wall-mounted heater cradle", .034, .255, .377, .373, 2.146, -.007, heater_enamel, .012)
+panel("Smoked heater control fascia", .014, .112, .190, .103, 2.151, -.007, heater_control, .007)
+rod("Heat setting dial", (.089, 2.148, -.022), (.099, 2.148, -.022), .024, mirror)
+for z, port in ((-.127, hot), (.121, cold)):
+    rod("Water heater brass union", (.243, 1.963, z), (.243, 1.929, z), .017, brass)
+    rod("Water heater valve cap", (.222, 1.941, z), (.195, 1.941, z), .017, port)
+    seam_line("Existing water supply connection", [
+        (.243, 1.932, z), (.243, 1.824, z), (.253, 1.789, z),
+        (.280, 1.765, z), (.315, 1.754, z), (.374, 1.754, z),
+    ], heater_enamel, .010)
+    rod("Water connection wall collar", (.373, 1.754, z), (.392, 1.754, z), .025, heater_enamel)
+
+plant = material("Olive foliage at WC ledge", (.061, .102, .021), .84)
+amber = material("Amber glass wash bottle", (.121, .058, .019), .31)
+rings("Pale ceramic planter", (.316, .973, -.236),
+      [(0, .048, .048), (.10, .063, .063), (.103, .058, .058), (.092, .052, .052)], ceramic)
+for i in range(11):
+    angle = i * 2.4
+    spread = .034 + .019 * (i % 3)
+    rod("Slender green planter leaf", (.316, 1.071, -.236),
+        (.316 + math.cos(angle)*spread, 1.217 + .029*(i % 3), -.236 + math.sin(angle)*spread),
+        .007, plant, .001)
+for z, size in ((.123, 1), (.235, .80)):
+    rings("Amber pump bottle", (.316, .974, z),
+          [(0, .032*size, .032*size), (.092*size, .033*size, .033*size),
+           (.110*size, .016*size, .016*size), (.122*size, .016*size, .016*size)], amber)
+    rod("Black bottle pump", (.315, .974 + .12*size, z), (.315, .986 + .135*size, z), .011, dark)
+    panel("Cream wash bottle label", .002, .037*size, .033*size, .282, 1.032, z, heater_enamel, .001)
 rings("Sculpted pedestal and bowl", (-.075, .028, 0), [
     (0, .167, .105), (.09, .186, .112), (.19, .191, .124), (.27, .255, .178),
     (.335, .272, .184), (.367, .266, .181), (.367, .177, .133), (.238, .123, .081),
 ], ceramic)
 rings("Rounded seat ring", (-.080, .396, 0), [(0, .257, .180), (.027, .251, .175), (.027, .183, .138), (0, .183, .135)], white)
-panel("Soft-close concealed cistern", .126, .465, .367, .183, .246, 0, ceramic, .028)
+panel("WC connection to concealed cistern", .133, .285, .345, .179, .220, 0, ceramic, .035)
+panel("Closed WC lid", .558, .033, .349, -.045, .427, 0, heater_enamel, .093)
 
 # Bake modifiers and batch same-material meshes per assembly so WebGL can render efficiently.
 bpy.context.view_layer.update()

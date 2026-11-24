@@ -6,7 +6,7 @@ import { loadFurnishings } from './furnishings.js';
 import { applyCleanTimber } from './timber.js';
 import { thresholds } from './navigation.js';
 import { addPlanWall, makeOpenings } from './openings.js';
-import { CLOSET, GARMENT_ALLOWANCE_MM, RACK_FRONT, RAIL_END, makeWardrobe } from './wardrobe.js';
+import { CLOSET, GARMENT_ALLOWANCE_MM, RACK_FRONT, RAIL_END, makeWardrobe, makeWardrobeMirror } from './wardrobe.js';
 
 export const APARTMENT_PLAN = plan;
 
@@ -71,8 +71,27 @@ export function makeApartment() {
   let furnitureFocus;
   let walking = false;
   const ceilings = new Map();
-  const fixturePacks = { master: 'bedroom', work: 'work', bath: 'bath', living: 'social', kitchen: 'social', dining: 'social', entry: 'social' };
+  const fixturePacks = { master: 'bedroom', work: 'work', bath: 'bath', toilet: 'bath', living: 'social', kitchen: 'social', dining: 'social', entry: 'social' };
   const walls = new THREE.Group();
+  const alcoveTiles = ['#d8c8b6', '#dbcbb9', '#d5c4b0'].map(material);
+  for (const [x, z, endX, endZ] of [[5.718, 1.31, 6.108, 1.31], [6.108, 1.31, 6.108, 2.09],
+    [6.108, 2.09, 4.56, 2.09]]) {
+    const dx = endX - x;
+    const dz = endZ - z;
+    const length = Math.hypot(dx, dz);
+    const columns = Math.ceil(length / .60);
+    const increment = length / columns;
+    for (let column = 0; column < columns; column++) {
+      const t = (column + .5) / columns;
+      for (let row = 0; row < 5; row++) {
+        const tile = box(increment - .0018, .519, .006, x + t * dx, .26 + row * .52, z + t * dz,
+          alcoveTiles[(column + (row % 2)) % alcoveTiles.length]);
+        tile.rotation.y = -Math.atan2(dz, dx);
+        tile.receiveShadow = true;
+        walls.add(tile);
+      }
+    }
+  }
   const { windows, doors } = makeOpenings(box);
   const skylineMaterial = new THREE.MeshBasicMaterial({ toneMapped: false });
   const skyline = new THREE.Mesh(new THREE.PlaneGeometry(30, 10), skylineMaterial);
@@ -92,6 +111,8 @@ export function makeApartment() {
   }
   openLeaves.visible = false;
   const closet = makeWardrobe(box, plan.wardrobe, material);
+  const closetMirror = makeWardrobeMirror(plan.wardrobe);
+  closetMirror.show(false, false);
   paintFinish(wallSurface);
   closet.traverse((item) => {
     if (item.isMesh) finishFurniture(item.material);
@@ -119,7 +140,7 @@ export function makeApartment() {
   clearance.visible = false;
   const { width, depth } = CLOSET;
 
-  for (const segment of [[0, 0, width, 0], [0, 0, 0, depth], [width, 0, width, depth]]) {
+  for (const segment of [[0, 0, width, 0], [0, 0, 0, depth], [width + .065, 0, width + .065, depth]]) {
     addWall(closetShell, segment);
   }
   closetShell.position.copy(closet.position);
@@ -168,7 +189,7 @@ export function makeApartment() {
     }
   }
   shell.add(walls, windows, doors, openLeaves);
-  root.add(shell, fixtures, closet, closetShell);
+  root.add(shell, fixtures, closet, closetShell, closetMirror.wall);
   closetShell.visible = false;
   const overviewBounds = new THREE.Box3().setFromObject(root);
   const detailBounds = new THREE.Box3(
@@ -190,7 +211,7 @@ export function makeApartment() {
     for (const scene of fixtures.children) {
       scene.visible = walking ? scene.name !== 'doors' : !pack || scene.name === pack || (pack === 'social' && scene.name === 'doors');
     }
-    closet.visible = !furnitureFocus;
+    closet.visible = !furnitureFocus || furnitureFocus === 'wic';
   }
   return {
     root, floors, overviewBounds, detailBounds,
@@ -243,14 +264,15 @@ export function makeApartment() {
       return obstacles;
     },
     showFurniture(visible, focus) {
-      fixtures.visible = visible;
+      fixtures.visible = visible && focus !== 'wic';
       furnitureFocus = focus;
       applyFurnitureFocus();
     },
     showWalls(visible, closetView, roomView) {
       walls.visible = visible && !closetView;
       windows.visible = visible && !closetView;
-      doors.visible = visible && !closetView;
+      doors.visible = !closetView && (visible || fixtures.visible);
+      closetMirror.show(visible || closetView, walking || roomView === 'wic');
       closetShell.visible = visible && closetView;
       walkCeiling.visible = visible && walking;
       showSkyline = visible && (walking || roomView === 'master' || roomView === 'living');

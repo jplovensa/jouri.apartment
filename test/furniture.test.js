@@ -24,7 +24,7 @@ test('the exported GLB assemblies load and have no clashes with separate furnitu
     const solids = children.map((mesh) => new THREE.Box3().setFromObject(mesh, true));
     return { name, solids };
   });
-  assert.equal(assemblies.length, 25);
+  assert.equal(assemblies.length, 24);
 
   const find = (prefix) => group.children.flatMap(({ children }) => children)
     .find(({ name }) => name.startsWith(prefix));
@@ -47,6 +47,10 @@ test('the exported GLB assemblies load and have no clashes with separate furnitu
   near(desk.x, .400);
   near(size(find('F20_Illuminated')).x, 1);
   near(size(find('F13')).x, .758);
+  const toilet = find('Toilet_alcove');
+  const heater = toilet.children.find(({ material }) => /heater enamel/i.test(material?.name));
+  assert.ok(bounds(heater).max.y > 2.25, 'the alcove includes the wall-mounted water heater');
+  assert.ok(!find('F10'), 'the wall facing the working-room daybed is clear');
   for (let i = 0; i < assemblies.length; i++) {
     for (let j = i + 1; j < assemblies.length; j++) {
       const a = assemblies[i];
