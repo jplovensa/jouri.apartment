@@ -68,7 +68,7 @@ function workList(rows, today, openItem, compact) {
 
 export function scheduleGroups(rows, now = Date.now()) {
   const today = projectDate(now);
-  const week = projectDate(now + 7 * 86400000);
+  const week = projectDate(Number(now) + 7 * 86400000);
   const groups = [
     ['Overdue', []], ['Next 7 days', []], ['Later', []], ['Unscheduled', []], ['Complete', []],
   ];

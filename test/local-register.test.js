@@ -24,3 +24,16 @@ test('the Pages register keeps pins and can hand off updates without duplicating
   target.remove(target.list().find((item) => item.id === planned.id));
   assert.equal(target.list().length, 13);
 });
+
+test('planned dates, priorities and blockers survive a register handoff', () => {
+  const source = browser();
+  const target = browser();
+  const initial = source.list()[0];
+  const revised = source.save({ ...initial, priority: 'Urgent', start: '2026-11-24',
+    due: '2026-11-26', blocker: 'Confirm wall finish' }, initial);
+  assert.equal(target.import(source.export()).imported, 1);
+  const restored = target.list().find((item) => item.id === revised.id);
+  assert.equal(restored.priority, 'Urgent');
+  assert.equal(restored.blocker, 'Confirm wall finish');
+  assert.throws(() => target.save({ ...restored, start: '2026-11-27' }, restored), /Enter a title/);
+});
