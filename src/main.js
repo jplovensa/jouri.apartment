@@ -124,6 +124,7 @@ $('focus-doors').addEventListener('click', () => {
   referenceIndex = 2;
   renderReference();
   sceneView?.frame();
+  viewport.scrollIntoView({ block: 'center' });
 });
 for (const button of wallButtons) button.addEventListener('click', () => {
   wallsVisible = button.dataset.walls === 'on';
@@ -183,11 +184,15 @@ function initialise() {
     for (const [id, label] of labels) {
       const [x, z] = ROOMS[id].label;
       const position = project(x, z);
-      label.hidden = isClosetView() || portal?.placing || !position.visible;
+      label.hidden = isClosetView() || focusedRoom === 'doors' || portal?.placing || !position.visible;
       label.style.left = position.left;
       label.style.top = position.top;
     }
-    portal?.renderPins((x, z) => project(x, z, isPlanView() ? .05 : .17), isClosetView() ? 'wic' : null);
+    portal?.renderPins((x, z) => {
+      const position = project(x, z, isPlanView() ? .05 : .17);
+      if (focusedRoom === 'doors') position.visible = false;
+      return position;
+    }, isClosetView() ? 'wic' : null);
   }
 
   function frame() {
@@ -199,7 +204,7 @@ function initialise() {
     const detail = isClosetView();
     const top = isPlanView();
     model.focusCloset(detail, view === 'wic-plan');
-    model.showFurniture(view === 'orbit');
+    model.showFurniture(view === 'orbit', focusedRoom === 'doors');
     model.showWalls(wallsVisible, detail);
     renderer.shadowMap.needsUpdate = true;
     const focusFloor = focusedRoom && model.floors.get(focusedRoom);

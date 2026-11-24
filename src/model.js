@@ -91,6 +91,7 @@ export function makeApartment() {
   const root = new THREE.Group();
   const shell = new THREE.Group();
   const fixtures = new THREE.Group();
+  let doorFocus = false;
   const walls = new THREE.Group();
   const closet = makeWardrobe(box, plan.wardrobe, material);
   const closetShell = new THREE.Group();
@@ -155,10 +156,15 @@ export function makeApartment() {
   detailFloorGroup.add(detailFloor);
   detailFloorGroup.visible = false;
   root.add(detailFloorGroup, clearance);
+  function applyFurnitureFocus() {
+    for (const scene of fixtures.children) scene.visible = !doorFocus || scene.name === 'doors';
+    closet.visible = !doorFocus;
+  }
   return {
     root, floors, overviewBounds, detailBounds,
     async loadFurniture() {
       const failures = await loadFurnishings(fixtures);
+      applyFurnitureFocus();
       let teakMap;
       fixtures.traverse((node) => {
         if (node.isMesh && node.material?.name?.includes('Baltimore teak')) teakMap = node.material.map;
@@ -171,7 +177,11 @@ export function makeApartment() {
       });
       return failures;
     },
-    showFurniture(visible) { fixtures.visible = visible; },
+    showFurniture(visible, inspectDoors = false) {
+      fixtures.visible = visible;
+      doorFocus = inspectDoors;
+      applyFurnitureFocus();
+    },
     showWalls(visible, closetView) {
       walls.visible = visible && !closetView;
       closetShell.visible = visible && closetView;
