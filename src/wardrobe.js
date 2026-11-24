@@ -1,6 +1,11 @@
 import * as THREE from 'three';
 
 export const CLOSET = { width: 2.022, depth: 2.157, height: 2.61 };
+const RAIL = { offset: .300, leftRun: 1.450, rearRun: .750, profile: .026 };
+const RACK = { width: 1.216, depth: .350 };
+export const RAIL_END = RAIL.offset + RAIL.leftRun;
+export const RACK_FRONT = CLOSET.depth - RACK.depth;
+export const RAIL_CLEARANCE_MM = Math.round((RACK_FRONT - RAIL_END) * 1000);
 export const JOINERY = [
   ['H01 · Double L rail', 'Left wall and rear return. 1,450 + 750 mm at 1,050 and 2,000 mm above floor.'],
   ['C01 · Four-drawer cabinet', 'Rear right. 900 × 400 × 900 mm.'],
@@ -15,44 +20,59 @@ export function makeWardrobe(box, placement, material) {
   const teak = material('#9c694a');
   const edge = material('#724830');
   const steel = material('#272a26');
-  const add = (w, h, d, x, y, z, surface = teak) =>
-    root.add(box(w, h, d, x, y, z, surface));
+  const rails = new THREE.Group();
+  const drawers = new THREE.Group();
+  const rack = new THREE.Group();
+  rails.name = 'H01';
+  drawers.name = 'C01';
+  rack.name = 'S01';
+  root.add(rails, drawers, rack);
+  const addTo = (group) => (w, h, d, x, y, z, surface = teak) =>
+    group.add(box(w, h, d, x, y, z, surface));
+  const addRail = addTo(rails);
+  const addDrawer = addTo(drawers);
+  const addRack = addTo(rack);
 
   for (const y of [1.05, 2]) {
-    add(.026, .026, 1.45, .30, y, 1.025, steel);
-    add(.75, .026, .026, .675, y, .3, steel);
-    for (const z of [.355, 1.05, 1.67]) add(.30, .022, .022, .15, y, z, steel);
-    add(.022, .022, .30, 1.01, y, .15, steel);
+    const { offset, leftRun, rearRun, profile } = RAIL;
+    // Square-cut ends: the front tip stops at Q and the rear return meets the left rail.
+    const halfProfile = profile / 2;
+    addRail(profile, profile, leftRun + halfProfile, offset, y,
+      (offset - halfProfile + RAIL_END) / 2, steel);
+    addRail(rearRun - halfProfile, profile, profile,
+      offset + (rearRun + halfProfile) / 2, y, offset, steel);
+    for (const z of [.355, 1.05, 1.67]) addRail(offset - halfProfile, .022, .022,
+      (offset - halfProfile) / 2, y, z, steel);
+    addRail(.022, .022, offset - halfProfile, 1.01, y, (offset - halfProfile) / 2, steel);
   }
 
   const drawerX = width - .45;
-  add(.9, .08, .37, drawerX, .04, .19, edge);
-  add(.9, .82, .382, drawerX, .49, .191);
+  addDrawer(.9, .08, .37, drawerX, .04, .19, edge);
+  addDrawer(.9, .82, .382, drawerX, .49, .191);
   for (let i = 0; i < 4; i++) {
     const y = .185 + i * .202;
-    add(.896, .2, .018, drawerX, y, .391);
-    add(.155, .014, .022, drawerX, y + .036, .411, steel);
+    addDrawer(.896, .2, .018, drawerX, y, .391);
+    addDrawer(.155, .014, .022, drawerX, y + .036, .411, steel);
   }
 
-  const rackWidth = 1.216;
-  const rackDepth = .350;
-  const rackFront = depth - rackDepth;
+  const { width: rackWidth, depth: rackDepth } = RACK;
+  const rackFront = RACK_FRONT;
   const rackZ = rackFront + rackDepth / 2;
   const panel = .018;
-  add(rackWidth, .08, rackDepth, rackWidth / 2, .04, rackZ, edge);
-  add(rackWidth, .02, rackDepth, rackWidth / 2, height - .01, rackZ);
-  add(rackWidth, 2.51, .009, rackWidth / 2, 1.335, depth - .0045, edge);
+  addRack(rackWidth, .08, rackDepth, rackWidth / 2, .04, rackZ, edge);
+  addRack(rackWidth, .02, rackDepth, rackWidth / 2, height - .01, rackZ);
+  addRack(rackWidth, 2.51, .009, rackWidth / 2, 1.335, depth - .0045, edge);
   const modules = [[.08, 1.4, 5], [1.48, 1.11, 4]];
   for (const [base, moduleHeight, levels] of modules) {
     for (const x of [panel / 2, rackWidth / 2, rackWidth - panel / 2]) {
-      add(panel, moduleHeight, .341, x, base + moduleHeight / 2, rackFront + .341 / 2);
+      addRack(panel, moduleHeight, .341, x, base + moduleHeight / 2, rackFront + .341 / 2);
     }
-    add(rackWidth - 2 * panel, panel, .341, rackWidth / 2, base + panel / 2, rackFront + .341 / 2);
-    add(rackWidth - 2 * panel, panel, .341, rackWidth / 2, base + moduleHeight - panel / 2, rackFront + .341 / 2);
+    addRack(rackWidth - 2 * panel, panel, .341, rackWidth / 2, base + panel / 2, rackFront + .341 / 2);
+    addRack(rackWidth - 2 * panel, panel, .341, rackWidth / 2, base + moduleHeight - panel / 2, rackFront + .341 / 2);
     const shelfWidth = (rackWidth - 3 * panel) / 2;
     for (let level = 1; level < levels; level++) {
       for (const x of [panel + shelfWidth / 2, rackWidth - panel - shelfWidth / 2]) {
-        add(shelfWidth, panel, .33, x, base + level * moduleHeight / levels, rackFront + .165);
+        addRack(shelfWidth, panel, .33, x, base + level * moduleHeight / levels, rackFront + .165);
       }
     }
   }

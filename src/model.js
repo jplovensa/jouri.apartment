@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import plan from './plan.json' with { type: 'json' };
-import { CLOSET, makeWardrobe } from './wardrobe.js';
+import { CLOSET, RACK_FRONT, RAIL_END, makeWardrobe } from './wardrobe.js';
 
 export const ROOMS = {
   master: { name: 'Main bedroom', color: '#c89c77', label: [1.80, 1.83] },
@@ -68,6 +68,18 @@ export function makeApartment() {
   const fixtures = new THREE.Group();
   const closet = makeWardrobe(box, plan.wardrobe, material);
   const closetShell = new THREE.Group();
+  const clearance = new THREE.Group();
+  const guideHeight = 2.64;
+  const guideMaterial = new THREE.LineBasicMaterial({ color: '#3b7360' });
+  const guidePoints = [
+    [.3, RAIL_END, .54, RAIL_END],
+    [.3, RACK_FRONT, .54, RACK_FRONT],
+    [.49, RAIL_END, .49, RACK_FRONT],
+  ].flatMap(([x1, z1, x2, z2]) => [new THREE.Vector3(x1, guideHeight, z1), new THREE.Vector3(x2, guideHeight, z2)]);
+  clearance.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(guidePoints), guideMaterial));
+  clearance.position.copy(closet.position);
+  clearance.rotation.copy(closet.rotation);
+  clearance.visible = false;
   const { width, depth } = CLOSET;
 
   for (const segment of [[0, 0, width, 0], [0, 0, 0, depth], [width, 0, width, depth]]) {
@@ -104,12 +116,13 @@ export function makeApartment() {
   detailFloorGroup.rotation.copy(closet.rotation);
   detailFloorGroup.add(detailFloor);
   detailFloorGroup.visible = false;
-  root.add(detailFloorGroup);
+  root.add(detailFloorGroup, clearance);
   return {
     root, floors, overviewBounds, detailBounds,
-    focusCloset(isDetail) {
+    focusCloset(isDetail, showClearance = false) {
       shell.visible = fixtures.visible = !isDetail;
       closetShell.visible = detailFloorGroup.visible = isDetail;
+      clearance.visible = isDetail && showClearance;
     },
     highlight(id) {
       for (const [key, mesh] of floors) {

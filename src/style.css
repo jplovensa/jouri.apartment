@@ -67,8 +67,8 @@ dd { margin: 3px 0 0; color: var(--muted); line-height: 1.4; }
 }
 @media (max-width: 430px) {
   main { padding-top: 22px; }
-  .toolbar { gap: 3px; padding-inline: 6px; }
-  .toolbar button { padding-inline: 9px; }
+  .toolbar { gap: 3px; padding-inline: 6px; flex-wrap: wrap; }
+  .toolbar button { padding-inline: 7px; font-size: .81rem; }
   .room-label { font-size: .65rem; padding: 3px 5px; }
   .viewport-footer { padding-left: 8px; }
   #reset { padding-inline: 7px; }

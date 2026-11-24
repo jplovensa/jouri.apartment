@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { ROOMS, makeApartment } from './model.js';
-import { JOINERY } from './wardrobe.js';
+import { JOINERY, RAIL_CLEARANCE_MM } from './wardrobe.js';
 import './style.css';
 
 const $ = (id) => document.getElementById(id);
@@ -26,7 +26,7 @@ const roomNotes = {
   dining: 'Part of the open-plan kitchen, dining and living area.',
   living: 'The main open room between the bedroom and working room.',
   work: 'The room beside the walk-in closet, with the angled exterior wall.',
-  wic: 'Main bay 2,022 × 2,157 mm. Ceiling 2,610 mm. SD-01 is for production review.',
+  wic: `Main bay 2,022 × 2,157 mm. Ceiling 2,610 mm. The closet plan shows the ${RAIL_CLEARANCE_MM} mm nominal gap from the rail tip to the shoe rack face. Verify clearance with clothes on site.`,
 };
 
 function selectRoom(id) {
@@ -42,11 +42,14 @@ function selectRoom(id) {
   sceneView?.render();
 }
 
+const isClosetView = () => view === 'wic' || view === 'wic-plan';
+const isPlanView = () => view === 'plan' || view === 'wic-plan';
+
 function setView(next) {
   view = next;
-  if (view === 'wic') selectRoom('wic');
+  if (isClosetView()) selectRoom('wic');
   for (const button of viewButtons) button.setAttribute('aria-pressed', String(button.dataset.view === view));
-  $('controls-hint').textContent = view === 'plan'
+  $('controls-hint').textContent = isPlanView()
     ? 'Drag to pan · Scroll or pinch to zoom'
     : 'Drag to orbit · Scroll or pinch to zoom';
   sceneView?.frame();
@@ -62,7 +65,7 @@ for (const [id, { name, color }] of Object.entries(ROOMS)) {
   swatch.setAttribute('aria-hidden', 'true');
   button.append(swatch, name);
   button.addEventListener('click', () => {
-    if (view === 'wic' && id !== 'wic') setView('orbit');
+    if (isClosetView() && id !== 'wic') setView('orbit');
     selectRoom(id);
   });
   $('rooms').append(button);
@@ -76,7 +79,7 @@ for (const [id, { name, color }] of Object.entries(ROOMS)) {
 for (const [name, detail] of JOINERY) $('joinery').append(element('dt', name), element('dd', detail));
 for (const button of viewButtons) button.addEventListener('click', () => setView(button.dataset.view));
 $('reset').addEventListener('click', () => {
-  if (view !== 'wic') selectRoom(null);
+  if (!isClosetView()) selectRoom(null);
   setView(view);
 });
 
@@ -109,7 +112,7 @@ function initialise() {
     for (const [id, label] of labels) {
       const [x, z] = ROOMS[id].label;
       point.set(x, .035, z).project(camera);
-      label.hidden = view === 'wic' || Math.abs(point.x) > .93 || Math.abs(point.y) > .93;
+      label.hidden = isClosetView() || Math.abs(point.x) > .93 || Math.abs(point.y) > .93;
       label.style.left = `${(point.x + 1) * 50}%`;
       label.style.top = `${(1 - point.y) * 50}%`;
     }
@@ -121,12 +124,12 @@ function initialise() {
     if (!width || !height) return;
     renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
     renderer.setSize(width, height, false);
-    const detail = view === 'wic';
-    const top = view === 'plan';
-    model.focusCloset(detail);
+    const detail = isClosetView();
+    const top = isPlanView();
+    model.focusCloset(detail, view === 'wic-plan');
     const bounds = detail ? model.detailBounds : model.overviewBounds;
     const target = bounds.getCenter(new THREE.Vector3());
-    const offset = top ? [0, 22, .001] : detail ? [-9, 10, 6.5] : [-10, 20, -15];
+    const offset = top ? [0, 22, detail ? -.001 : .001] : detail ? [-11, 15, .4] : [-10, 20, -15];
     camera.position.copy(target).add(new THREE.Vector3(...offset));
     camera.lookAt(target);
     camera.updateMatrixWorld(true);
@@ -160,7 +163,7 @@ function initialise() {
     if (!event.isPrimary) return;
     const start = down;
     down = null;
-    if (view === 'wic' || !start || Math.hypot(event.clientX - start[0], event.clientY - start[1]) > 5) return;
+    if (isClosetView() || !start || Math.hypot(event.clientX - start[0], event.clientY - start[1]) > 5) return;
     const rect = canvas.getBoundingClientRect();
     pointer.set((event.clientX - rect.left) / rect.width * 2 - 1, 1 - (event.clientY - rect.top) / rect.height * 2);
     ray.setFromCamera(pointer, camera);
