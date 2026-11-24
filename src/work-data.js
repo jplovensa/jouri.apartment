@@ -13,7 +13,7 @@ export const PRIORITIES = ['Low', 'Normal', 'High', 'Urgent'];
 export const STATUSES = ['Planned', 'Survey needed', 'In progress', 'Blocked', 'Complete'];
 
 export const SCOPES = {
-  M01: ['Scrape and repaint', 'Protect surfaces, scrape loose coating, patch, sand, prime and paint. Measure scraping, net wall paint and ceiling paint separately.'],
+  M01: ['Scrape and repaint', 'Protect surfaces, scrape loose coating, patch, sand, prime and paint in Jotun 0471 Light Antique. Measure scraping, net wall paint and ceiling paint separately.'],
   M02: ['Main bedroom door', 'Measure clear opening, wall thickness, frame condition and swing. Confirm door leaf, finish, hinges, handle and lockset.'],
   M03: ['Window frame refresh', 'Record each unit, material, affected faces, damage and finish. Confirm seals and hardware after inspection.'],
   M04: ['Bathroom cable routing', 'Measure route length and connection points. Confirm cable protection, fixings, access and patching.'],

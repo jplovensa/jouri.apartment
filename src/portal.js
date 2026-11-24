@@ -71,6 +71,7 @@ export function makePortal({ rooms, plan, selectRoom, showPlan, redraw, canPlace
     drafting = active;
     placeButton.textContent = active ? 'Cancel pin placement' : '+ Drop work pin';
     viewport.classList.toggle('placing', active);
+    if (active) viewport.scrollIntoView({ block: 'center' });
     redraw();
     $('controls-hint').textContent = active ? 'Click or tap inside a room to place the pin' : 'Drag for the current view · Scroll or pinch to zoom';
   }
