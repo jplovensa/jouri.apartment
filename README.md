@@ -1,21 +1,17 @@
-# Jouri Apartment
+# Jouri Apartment Renovation Control Tower
 
-A Three.js coordination model of the Jouri apartment for SECHA Studio+. It opens in a cutaway view with seven selectable rooms, a top-down floor plan and a dedicated wardrobe detail.
+Private Three.js coordination model based on Interiola’s 16 October 2026 as-built drawing and the SECHA Studio+ minor works estimate SCH-MW-01/02. The model shows all seven zones. Furniture is simplified for coordination. The attached render sheets in the room panel are the original design references.
 
-## Run locally
+The closet uses the SD-01 rack position and a proposed 750 mm rail-to-rack gap. The left rail run is 757 mm, 693 mm shorter than the shop drawing. The plan shows 650 mm standing depth after a 100 mm allowance for clothing. Verify clearances on site and approve the revised set-out before fabrication.
 
-Use Node.js 20.19+ or 22.12+.
+The work register requires signed-in Site access and its DB binding. Positions are stored in metres in the apartment’s X/Z frame. Estimate pins are indicative. Editing an estimate pin stores an override in D1. Newly placed pins and edits persist across sessions. The browser uses optimistic revision checks so simultaneous edits cannot silently overwrite one another.
 
 ```sh
 npm ci
-npm run dev
+node --test
+npm run build:portal
 ```
 
-Run `npm run build` to generate a static, relative-path build in `dist/`. Use `npm run preview` to check that build.
+Publish `dist/server/index.js` as the Site Worker. The D1 schema lives under `drizzle/`.
 
-## Drawing basis
-
-- The shell is traced from the full apartment “Layout Desain”, page 4 of Interiola’s *Gambar Kerja Apartment Ms. Joury*. The in-app drawing register uses English room names.
-- The walk-in closet uses SECHA Studio+ **SD-01**, 19 November 2026, sheets WIC-SD01–08. Facing into the closet, the double rail is on the left, the four-drawer cabinet is at the rear right, and the shoe rack sits on the inside of the entrance return with its shelves opening into the room.
-- `src/plan.json` holds the traced polygons, wall segments and wardrobe transform in metres. `src/wardrobe.js` holds the measured main bay and joinery envelopes. The entrance pocket and other rooms remain approximate. Cutaway wall height, kitchen and bathroom fixtures, bracket appearance and finish colours are visual approximations.
-- The existing mirror and optional A01–A03 shelves require confirmed set-out or scope. They are excluded from this initial model. SD-01 is for production review. Verify site dimensions before fabrication.
+GitHub Pages runs `npm run build:pages`. It serves the apartment viewer and render references and links to the private work register. The Pages build has no database, account session or saved project records. To publish a separate control tower, configure the destination site ID and the logical D1 binding `DB` in `.openai/hosting.json`.

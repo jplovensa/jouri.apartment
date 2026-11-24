@@ -73,3 +73,68 @@ dd { margin: 3px 0 0; color: var(--muted); line-height: 1.4; }
   .viewport-footer { padding-left: 8px; }
   #reset { padding-inline: 7px; }
 }
+.intro { display: flex; align-items: end; justify-content: space-between; gap: 12px; }
+.intro > div > p { margin: 0; font-size: 1rem; color: var(--muted); }
+.primary {
+  background: var(--accent); border: 1px solid var(--accent); border-radius: 8px;
+  min-height: 43px; padding: 8px 14px; color: white; font-weight: 700;
+}
+button:disabled { opacity: .48; cursor: default; }
+.totals { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 12px; margin: 0 0 18px; }
+.total { background: #faf9f5; border: 1px solid var(--line); border-radius: 9px; padding: 12px 15px; }
+.total strong { display: block; font-size: 1.5rem; line-height: 1.1; }
+.total span { color: var(--muted); font-size: .82rem; }
+.viewport { height: clamp(410px, 61vh, 720px); }
+#viewport.placing canvas { cursor: crosshair; }
+#map-pins { z-index: 2; }
+.pin {
+  pointer-events: auto; position: absolute; transform: translate(-50%, -50%);
+  min-width: 28px; height: 28px; padding: 0 5px; border-radius: 20px; border: 2px solid #faf9f5;
+  background: #526957; color: white; box-shadow: 0 2px 7px #29312c45; font-size: .68rem; font-weight: 800;
+}
+.pin[data-status="Survey needed"] { background: #895818; }
+.pin[data-status="Blocked"] { background: #9a4636; }
+.pin[data-status="In progress"] { background: #315e77; }
+.pin[data-status="Complete"] { background: #31533e; }
+.pin:focus-visible { outline-offset: 1px; z-index: 3; }
+#reference-image { width: 100%; display: block; border: 1px solid var(--line); border-radius: 6px; }
+.reference-footer { display: flex; align-items: center; justify-content: space-between; min-height: 30px; color: var(--muted); font-size: .75rem; gap: 4px; }
+.reference-footer button { background: transparent; border: 0; padding: 5px 0; text-decoration: underline; font-size: .78rem; }
+.room-list { gap: 2px; }
+.room-list button { min-height: 36px; }
+.work-panel { margin-top: 20px; background: #faf9f5; border: 1px solid var(--line); border-radius: 13px; padding: 17px; }
+.work-head { display: flex; justify-content: space-between; align-items: end; flex-wrap: wrap; gap: 14px; }
+.work-head h2 { font-size: 1.17rem; margin: 0 0 5px; }
+.work-head p, #portal-message { margin: 0; color: var(--muted); font-size: .85rem; }
+#portal-message { margin-top: 10px; min-height: 1.15em; }
+.filters, .form-row { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; }
+label { display: grid; gap: 4px; color: #424b43; font-size: .83rem; }
+select, input, textarea { width: 100%; background: white; border: 1px solid #c8c9bc; border-radius: 6px; padding: 8px; font: inherit; color: #242b25; min-height: 40px; }
+textarea { resize: vertical; }
+.work-list { padding: 0; margin: 9px 0 0; list-style: none; }
+.work-list li { border-top: 1px solid var(--line); }
+.work-entry {
+  display: grid; grid-template-columns: minmax(0,1.5fr) minmax(0,1fr) minmax(0,.8fr);
+  align-items: center; gap: 10px; padding: 11px 4px; width: 100%; border: 0; background: transparent; text-align: left;
+}
+.work-entry:hover { background: #eeeee5; }
+.work-entry span { font-size: .83rem; color: var(--muted); }
+.work-entry strong { display: block; font-size: .9rem; }
+dialog { border: 1px solid var(--line); border-radius: 12px; color: inherit; background: #faf9f5; width: min(520px,calc(100% - 28px)); max-height: 90dvh; padding: 20px; }
+dialog::backdrop { background: #20281e70; }
+dialog form { display: grid; gap: 9px; }
+dialog h2, dialog p { margin: 0; }
+#editor-location { color: var(--muted); font-size: .82rem; }
+#form-error { color: #802c22; font-size: .85rem; }
+.form-actions { display: flex; justify-content: end; align-items: center; gap: 10px; }
+#close-editor { background: transparent; border: 0; min-height: 40px; }
+@media (max-width: 540px) {
+  .intro { align-items: start; flex-direction: column; }
+  .totals { gap: 5px; }
+  .total { padding: 8px; }
+  .total span { font-size: .67rem; }
+  .work-entry { grid-template-columns: 1.2fr .85fr .65fr; gap: 5px; }
+  .work-entry span, .work-entry strong { font-size: .75rem; }
+}
+
+.portal-link { display: inline-flex; align-items: center; text-decoration: none; }

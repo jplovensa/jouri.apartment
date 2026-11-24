@@ -1,13 +1,13 @@
 import * as THREE from 'three';
 
 export const CLOSET = { width: 2.022, depth: 2.157, height: 2.61 };
-const RAIL = { offset: .300, leftRun: 1.450, rearRun: .750, profile: .026 };
+const RAIL = { offset: .300, leftRun: .757, rearRun: .750, profile: .026 };
 const RACK = { width: 1.216, depth: .350 };
 export const RAIL_END = RAIL.offset + RAIL.leftRun;
 export const RACK_FRONT = CLOSET.depth - RACK.depth;
 export const RAIL_CLEARANCE_MM = Math.round((RACK_FRONT - RAIL_END) * 1000);
 export const JOINERY = [
-  ['H01 · Double L rail', 'Left wall and rear return. 1,450 + 750 mm at 1,050 and 2,000 mm above floor.'],
+  ['H01 · Double L rail', 'Left wall and rear return. Proposed left run 757 mm, rear return 750 mm. Rail levels at 1,050 and 2,000 mm above floor.'],
   ['C01 · Four-drawer cabinet', 'Rear right. 900 × 400 × 900 mm.'],
   ['S01 · Open shoe rack', 'Left of the entrance. 1,216 × 350 × 2,610 mm. Nine levels per column.'],
 ];
@@ -35,13 +35,13 @@ export function makeWardrobe(box, placement, material) {
 
   for (const y of [1.05, 2]) {
     const { offset, leftRun, rearRun, profile } = RAIL;
-    // Square-cut ends: the front tip stops at Q and the rear return meets the left rail.
+    // Square-cut ends: the front tip stops at the revised set-out and the rear return meets the left rail.
     const halfProfile = profile / 2;
     addRail(profile, profile, leftRun + halfProfile, offset, y,
       (offset - halfProfile + RAIL_END) / 2, steel);
     addRail(rearRun - halfProfile, profile, profile,
       offset + (rearRun + halfProfile) / 2, y, offset, steel);
-    for (const z of [.355, 1.05, 1.67]) addRail(offset - halfProfile, .022, .022,
+    for (const z of [.355, .66, .97]) addRail(offset - halfProfile, .022, .022,
       (offset - halfProfile) / 2, y, z, steel);
     addRail(.022, .022, offset - halfProfile, 1.01, y, (offset - halfProfile) / 2, steel);
   }

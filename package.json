@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build --base=./",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "build:portal": "npm run build && node scripts/build-portal.mjs",
+    "build:pages": "npm run build -- --mode public"
   },
   "dependencies": {
     "three": "0.180.0"

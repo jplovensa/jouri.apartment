@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import plan from './plan.json' with { type: 'json' };
+import { furnish } from './furnishings.js';
 import { CLOSET, RACK_FRONT, RAIL_END, makeWardrobe } from './wardrobe.js';
 
 export const ROOMS = {
@@ -46,22 +47,6 @@ function addWall(group, [x1, z1, x2, z2], height = .43) {
   group.add(wall);
 }
 
-function addFixtures(group) {
-  const base = material('#ada396');
-  const counter = material('#f8f4e9');
-  const dark = material('#353931');
-  const steel = material('#7b8580');
-  const white = material('#f8f9f4');
-  const add = (...args) => group.add(box(...args));
-  add(.57, .84, 3.22, 5.88, .42, 3.90, base);
-  add(.60, .048, 3.27, 5.88, .864, 3.90, counter);
-  add(.39, .018, .48, 5.88, .895, 2.64, steel);
-  add(.29, .012, .32, 5.88, .905, 2.66, dark);
-  add(.40, .02, .55, 5.88, .895, 3.43, dark);
-  add(.038, .14, .038, 6.10, .95, 2.65, steel);
-  add(.59, .13, .53, 5.34, .065, 1.01, white);
-}
-
 export function makeApartment() {
   const root = new THREE.Group();
   const shell = new THREE.Group();
@@ -77,6 +62,14 @@ export function makeApartment() {
     [.49, RAIL_END, .49, RACK_FRONT],
   ].flatMap(([x1, z1, x2, z2]) => [new THREE.Vector3(x1, guideHeight, z1), new THREE.Vector3(x2, guideHeight, z2)]);
   clearance.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(guidePoints), guideMaterial));
+  const standingStart = RAIL_END + .10;
+  const standing = new THREE.Mesh(
+    new THREE.PlaneGeometry(1.216, RACK_FRONT - standingStart),
+    new THREE.MeshBasicMaterial({ color: '#84a28b', transparent: true, opacity: .45, depthWrite: false }),
+  );
+  standing.rotation.x = -Math.PI / 2;
+  standing.position.set(.608, .013, (standingStart + RACK_FRONT) / 2);
+  clearance.add(standing);
   clearance.position.copy(closet.position);
   clearance.rotation.copy(closet.rotation);
   clearance.visible = false;
@@ -102,7 +95,7 @@ export function makeApartment() {
   for (const points of plan.recesses) shell.add(floor(points, recessSurface));
   // Original trace retains the short entrance pocket. Its wall lengths are approximate.
   for (const wall of plan.walls) addWall(shell, wall);
-  addFixtures(fixtures);
+  furnish(fixtures, box, material);
   root.add(shell, fixtures, closet, closetShell);
   closetShell.visible = false;
   const overviewBounds = new THREE.Box3().setFromObject(root);
@@ -119,6 +112,7 @@ export function makeApartment() {
   root.add(detailFloorGroup, clearance);
   return {
     root, floors, overviewBounds, detailBounds,
+    showFurniture(visible) { fixtures.visible = visible; },
     focusCloset(isDetail, showClearance = false) {
       shell.visible = fixtures.visible = !isDetail;
       closetShell.visible = detailFloorGroup.visible = isDetail;

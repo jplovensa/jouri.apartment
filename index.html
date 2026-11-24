@@ -1,50 +1,86 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="theme-color" content="#f5f3ee">
-    <title>Jouri Apartment · SECHA Studio+</title>
-  </head>
-  <body>
-    <header class="masthead">
-      <span class="wordmark">SECHA STUDIO+</span>
-      <span class="status">Coordination model</span>
-    </header>
-    <main>
-      <div class="intro">
-        <h1>Jouri Apartment</h1>
-        <p>Explore the apartment floor plan and the SD-01 walk-in closet.</p>
-      </div>
-      <div class="layout">
-        <section class="viewer" aria-label="Interactive apartment model">
-          <div class="toolbar" aria-label="Model view">
-            <button type="button" data-view="orbit" aria-pressed="true">3D view</button>
-            <button type="button" data-view="plan" aria-pressed="false">Floor plan</button>
-            <button type="button" data-view="wic" aria-pressed="false">Closet detail</button>
-            <button type="button" data-view="wic-plan" aria-pressed="false">Closet plan</button>
-          </div>
-          <div id="viewport" class="viewport">
-            <div id="labels" class="labels" aria-hidden="true"></div>
-            <p id="fallback" hidden>WebGL is unavailable. The room list and drawing notes are still available.</p>
-          </div>
-          <div class="viewport-footer">
-            <span id="controls-hint">Drag to orbit · Scroll or pinch to zoom</span>
-            <button id="reset" type="button">Reset view</button>
-          </div>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f3ee">
+  <title>Jouri Apartment · Renovation Control Tower</title>
+</head>
+<body>
+  <header class="masthead">
+    <span class="wordmark">SECHA STUDIO+</span>
+    <span class="status">Private project workspace</span>
+  </header>
+  <main>
+    <div class="intro">
+      <div><h1>Jouri Apartment</h1><p>Renovation Control Tower</p></div>
+      <button id="add-pin" class="primary" type="button" disabled>+ Drop work pin</button>
+      <a id="portal-link" class="primary portal-link" href="https://jouri-apartment.jopelo16.chatgpt.site/" hidden>Open work register</a>
+    </div>
+    <div id="totals" class="totals" aria-label="Work summary"></div>
+    <div class="layout">
+      <section class="viewer" aria-label="Interactive apartment model">
+        <div class="toolbar" aria-label="Model view">
+          <button type="button" data-view="orbit" aria-pressed="true">3D model</button>
+          <button type="button" data-view="plan" aria-pressed="false">Floor plan</button>
+          <button type="button" data-view="wic" aria-pressed="false">Closet detail</button>
+          <button type="button" data-view="wic-plan" aria-pressed="false">Closet plan</button>
+        </div>
+        <div id="viewport" class="viewport">
+          <div id="labels" class="labels" aria-hidden="true"></div>
+          <div id="map-pins" class="labels"></div>
+          <p id="fallback" hidden>WebGL is unavailable. You can place a pin at a room centre or edit the register below.</p>
+        </div>
+        <div class="viewport-footer">
+          <span id="controls-hint">Drag to orbit · Scroll or pinch to zoom</span>
+          <button id="reset" type="button">Reset view</button>
+        </div>
+      </section>
+      <aside class="sidebar">
+        <h2 id="room-title">Apartment overview</h2>
+        <div id="rooms" class="room-list" aria-label="Select a room"></div>
+        <section class="details">
+          <p id="room-note"></p>
+          <dl id="joinery" hidden></dl>
+          <a id="reference-link" href="./references/apartment.webp" target="_blank" rel="noopener">
+            <img id="reference-image" src="./references/apartment.webp" alt="Interiola apartment axonometric">
+          </a>
+          <div class="reference-footer"><span>Interiola · design reference</span><button id="next-reference" type="button" hidden>Next view</button></div>
         </section>
-        <aside class="sidebar">
-          <h2>Rooms</h2>
-          <div id="rooms" class="room-list" aria-label="Select a room"></div>
-          <section class="details" aria-live="polite">
-            <h2 id="room-title">Apartment overview</h2>
-            <p id="room-note">Select a room in the model or the list to see its drawing notes.</p>
-            <dl id="joinery" hidden></dl>
-          </section>
-          <p class="source">Based on Interiola’s Layout Desain and SECHA Studio+ SD-01. Verify dimensions and openings on site.</p>
-        </aside>
+      </aside>
+    </div>
+    <section id="work-panel" class="work-panel" aria-labelledby="work-heading">
+      <div class="work-head">
+        <div><h2 id="work-heading">Work register</h2><p>SCH-MW-01/02 · Minor works estimate and planned additions</p></div>
+        <div class="filters">
+          <label>Room<select id="room-filter"></select></label>
+          <label>Status<select id="status-filter"></select></label>
+        </div>
       </div>
-    </main>
-    <script type="module" src="/src/main.js"></script>
-  </body>
+      <p id="portal-message" role="status" aria-live="polite">Loading saved work…</p>
+      <ol id="work-list" class="work-list"></ol>
+    </section>
+  </main>
+  <dialog id="editor" aria-labelledby="editor-title">
+    <form id="work-form">
+      <h2 id="editor-title">New work pin</h2>
+      <p id="editor-location"></p>
+      <label>Room<select name="room" id="edit-room" required></select></label>
+      <label>Scope<select name="scope" required></select></label>
+      <label>Work title<input name="title" maxlength="100" required></label>
+      <div class="form-row">
+        <label>Status<select name="status" required></select></label>
+        <label>Target date<input name="due" type="date"></label>
+      </div>
+      <div class="form-row">
+        <label>Assigned to<input name="owner" maxlength="80"></label>
+        <label>Measured quantity<input name="quantity" maxlength="80" placeholder="e.g. 4.36 m²"></label>
+      </div>
+      <label>Scope and site notes<textarea name="notes" rows="3" maxlength="2500"></textarea></label>
+      <p id="form-error" role="alert" hidden></p>
+      <div class="form-actions"><button id="close-editor" type="button">Cancel</button><button class="primary" type="submit">Save work</button></div>
+    </form>
+  </dialog>
+  <script type="module" src="/src/main.js"></script>
+</body>
 </html>

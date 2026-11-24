@@ -12,6 +12,7 @@ const labels = new Map();
 let selection = null;
 let view = 'orbit';
 let sceneView;
+let portal;
 
 function element(tag, content) {
   const node = document.createElement(tag);
@@ -20,19 +21,45 @@ function element(tag, content) {
 }
 
 const roomNotes = {
-  master: 'At the residential end of the apartment, beside the bathroom.',
-  bath: 'Between the main bedroom and kitchen. Fixtures are shown schematically.',
-  kitchen: 'The floor plan shows a counter along the right-hand wall. Fixtures are schematic.',
-  dining: 'Part of the open-plan kitchen, dining and living area.',
-  living: 'The main open room between the bedroom and working room.',
-  work: 'The room beside the walk-in closet, with the angled exterior wall.',
-  wic: `Main bay 2,022 × 2,157 mm. Ceiling 2,610 mm. The closet plan shows the ${RAIL_CLEARANCE_MM} mm nominal gap from the rail tip to the shoe rack face. Verify clearance with clothes on site.`,
+  master: 'The render shows a teak platform bed, terracotta headboard and fitted storage.',
+  bath: 'Vanity, shower and sanitary fittings follow the render as visual references.',
+  kitchen: 'Olive base units, a granite worktop and teak upper cabinets.',
+  dining: 'Granite-topped island with two stools, based on the furniture plan.',
+  living: 'Teak media wall and fitted storage from the Interiola renders.',
+  work: 'Angled alcove with daybed, fitted storage and a desk.',
+  wic: `2,022 × 2,157 mm bay · 2,610 mm ceiling. Proposed ${RAIL_CLEARANCE_MM} mm gap, up from 57 mm in SD-01. The shaded zone leaves 650 mm in front of the rack after a 100 mm clothing allowance. Verify on site before changing the rail.`,
 };
+
+const references = {
+  master: ['master', 'master-detail'],
+  bath: ['bath'],
+  kitchen: ['kitchen', 'kitchen-detail'],
+  dining: ['kitchen', 'living'],
+  living: ['living', 'living-detail'],
+  work: ['work', 'work-detail'],
+  wic: ['apartment'],
+};
+let referenceIndex = 0;
+function renderReference() {
+  const views = references[selection] ?? ['apartment'];
+  const url = `./references/${views[referenceIndex]}.webp`;
+  $('reference-link').href = url;
+  const img = $('reference-image');
+  img.src = url;
+  img.alt = selection ? `Interiola design reference for ${ROOMS[selection].name}` : 'Interiola apartment axonometric';
+  $('next-reference').hidden = views.length < 2;
+}
+$('next-reference').addEventListener('click', () => {
+  referenceIndex = (referenceIndex + 1) % references[selection].length;
+  renderReference();
+});
 
 function selectRoom(id) {
   selection = id;
+  referenceIndex = 0;
+  renderReference();
   $('room-title').textContent = ROOMS[id]?.name ?? 'Apartment overview';
-  $('room-note').textContent = roomNotes[id] ?? 'Select a room in the model or the list to see its drawing notes.';
+  $('room-note').textContent = roomNotes[id] ?? 'Select a room to see its original design render and notes.';
   $('joinery').hidden = id !== 'wic';
   for (const [roomId, button] of roomButtons) {
     button.setAttribute('aria-pressed', String(roomId === id));
@@ -46,6 +73,7 @@ const isClosetView = () => view === 'wic' || view === 'wic-plan';
 const isPlanView = () => view === 'plan' || view === 'wic-plan';
 
 function setView(next) {
+  portal?.cancelPlacement();
   view = next;
   if (isClosetView()) selectRoom('wic');
   for (const button of viewButtons) button.setAttribute('aria-pressed', String(button.dataset.view === view));
@@ -107,15 +135,24 @@ function initialise() {
   controls.minPolarAngle = 0;
 
   const point = new THREE.Vector3();
+  function project(x, z, height = .035) {
+    point.set(x, height, z).project(camera);
+    return {
+      visible: Math.abs(point.x) < .94 && Math.abs(point.y) < .94,
+      left: `${(point.x + 1) * 50}%`,
+      top: `${(1 - point.y) * 50}%`,
+    };
+  }
   function render() {
     renderer.render(scene, camera);
     for (const [id, label] of labels) {
       const [x, z] = ROOMS[id].label;
-      point.set(x, .035, z).project(camera);
-      label.hidden = isClosetView() || Math.abs(point.x) > .93 || Math.abs(point.y) > .93;
-      label.style.left = `${(point.x + 1) * 50}%`;
-      label.style.top = `${(1 - point.y) * 50}%`;
+      const position = project(x, z);
+      label.hidden = isClosetView() || portal?.placing || !position.visible;
+      label.style.left = position.left;
+      label.style.top = position.top;
     }
+    portal?.renderPins((x, z) => project(x, z, isPlanView() ? .05 : .17), isClosetView() ? 'wic' : null);
   }
 
   function frame() {
@@ -127,6 +164,7 @@ function initialise() {
     const detail = isClosetView();
     const top = isPlanView();
     model.focusCloset(detail, view === 'wic-plan');
+    model.showFurniture(view === 'orbit');
     const bounds = detail ? model.detailBounds : model.overviewBounds;
     const target = bounds.getCenter(new THREE.Vector3());
     const offset = top ? [0, 22, detail ? -.001 : .001] : detail ? [-11, 15, .4] : [-10, 20, -15];
@@ -168,7 +206,9 @@ function initialise() {
     pointer.set((event.clientX - rect.left) / rect.width * 2 - 1, 1 - (event.clientY - rect.top) / rect.height * 2);
     ray.setFromCamera(pointer, camera);
     const hit = ray.intersectObjects([...model.floors.values()], false)[0];
-    if (hit) selectRoom(hit.object.userData.room);
+    if (hit && !portal?.pick(hit.object.userData.room, hit.point.x, hit.point.z)) {
+      selectRoom(hit.object.userData.room);
+    }
   });
   canvas.addEventListener('pointercancel', () => { down = null; });
   canvas.addEventListener('webglcontextlost', (event) => {
@@ -193,3 +233,17 @@ try {
   $('fallback').hidden = false;
   for (const button of [...viewButtons, $('reset')]) button.disabled = true;
 }
+
+if (import.meta.env.MODE !== 'public') {
+  import('./portal.js').then(({ makePortal }) => {
+    portal = makePortal({
+      rooms: ROOMS,
+      selectRoom,
+      showPlan: () => setView('plan'),
+      redraw: () => sceneView?.render(),
+      canPlace: () => Boolean(sceneView && $('fallback').hidden),
+      currentRoom: () => selection,
+    });
+  });
+}
+selectRoom(null);
