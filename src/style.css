@@ -204,3 +204,23 @@ dialog h2, dialog p { margin: 0; }
 }
 
 #bed-download { display: grid; place-items: center; text-decoration: none; color: inherit; }
+.in-walkthrough canvas { cursor: grab; }
+.in-walkthrough canvas:active { cursor: grabbing; }
+.viewport.in-walkthrough:focus-visible { outline: 2px solid #638776; outline-offset: -2px; }
+.walk-panel { position: absolute; inset: 0; z-index: 4; pointer-events: none; }
+.walk-location {
+  position: absolute; top: 13px; left: 13px; padding: 8px 11px;
+  border-radius: 7px; background: #252b25e8; color: #fff; display: grid; gap: 2px;
+}
+.walk-location span { font-size: .7rem; color: #d1d9cf; }
+.walk-location strong { font-size: .85rem; }
+.walk-controls {
+  position: absolute; bottom: 13px; right: 13px; display: grid;
+  grid-template-columns: repeat(3, 42px); gap: 5px; pointer-events: auto;
+}
+.walk-controls button {
+  width: 42px; min-height: 42px; background: #252b25e8; color: #fff;
+  border: 1px solid #e5e5dd65; border-radius: 7px; font-size: 1.13rem;
+  touch-action: none; user-select: none;
+}
+.walk-controls button:active { background: #51715a; }

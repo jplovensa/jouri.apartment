@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { makeWalkthrough } from './walkthrough.js';
 import { APARTMENT_PLAN, ROOMS, makeApartment } from './model.js';
 import { JOINERY, RAIL_CLEARANCE_MM, STANDING_DEPTH_MM, GARMENT_ALLOWANCE_MM } from './wardrobe.js';
 import './style.css';
@@ -84,12 +85,13 @@ function selectRoom(id) {
     button.setAttribute('aria-pressed', String(roomId === id));
     labels.get(roomId).classList.toggle('active', roomId === id);
   }
-  sceneView?.model.highlight(id, Boolean(interiorShots[focusedRoom]));
+  sceneView?.model.highlight(id, Boolean(interiorShots[focusedRoom]) || isWalkView());
   sceneView?.render();
 }
 
 const isClosetView = () => view === 'wic' || view === 'wic-plan';
 const isPlanView = () => view === 'plan' || view === 'wic-plan';
+const isWalkView = () => view === 'walk';
 
 function setView(next) {
   portal?.cancelPlacement();
@@ -97,7 +99,10 @@ function setView(next) {
   focusedRoom = null;
   if (isClosetView()) selectRoom('wic');
   for (const button of viewButtons) button.setAttribute('aria-pressed', String(button.dataset.view === view));
-  $('controls-hint').textContent = isPlanView()
+  $('reset').textContent = isWalkView() ? 'Back to entrance' : 'Reset view';
+  $('controls-hint').textContent = isWalkView()
+    ? 'WASD or arrows to move · Drag or Q/E to look · Select a room to jump'
+    : isPlanView()
     ? 'Drag to pan · Scroll or pinch to zoom'
     : 'Drag to orbit · Scroll or pinch to zoom';
   sceneView?.frame();
@@ -113,6 +118,10 @@ for (const [id, { name, color }] of Object.entries(ROOMS)) {
   swatch.setAttribute('aria-hidden', 'true');
   button.append(swatch, name);
   button.addEventListener('click', () => {
+    if (isWalkView()) {
+      sceneView?.jumpWalk(id);
+      return;
+    }
     if (isClosetView() && id !== 'wic') setView('orbit');
     selectRoom(id);
   });
@@ -151,8 +160,11 @@ $('focus-entry').addEventListener('click', () => {
 
 function updateWallVisibility(model) {
   const isInterior = Boolean(interiorShots[focusedRoom]);
-  const visible = isInterior ? interiorWallsVisible : wallsVisible;
-  for (const option of wallButtons) option.setAttribute('aria-pressed', String(visible === (option.dataset.walls === 'on')));
+  const visible = isWalkView() || (isInterior ? interiorWallsVisible : wallsVisible);
+  for (const option of wallButtons) {
+    option.disabled = isWalkView();
+    option.setAttribute('aria-pressed', String(visible === (option.dataset.walls === 'on')));
+  }
   model?.showWalls(visible, isClosetView(), isInterior ? (focusedRoom === 'entry' ? 'dining' : focusedRoom) : undefined);
 }
 
@@ -160,18 +172,22 @@ for (const button of wallButtons) button.addEventListener('click', () => {
   if (interiorShots[focusedRoom]) interiorWallsVisible = button.dataset.walls === 'on';
   else wallsVisible = button.dataset.walls === 'on';
   updateWallVisibility(sceneView?.model);
-  sceneView?.render();
+  sceneView?.lightChanged();
 });
 $('reset').addEventListener('click', () => {
+  if (isWalkView()) {
+    sceneView?.jumpWalk('entry');
+    return;
+  }
   if (!isClosetView()) selectRoom(null);
   setView(view);
 });
 
 function initialise() {
   const renderer = new THREE.WebGLRenderer({ antialias: true });
-  renderer.setClearColor('#eae7de');
+  renderer.setClearColor('#e8e7e2');
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.14;
+  renderer.toneMappingExposure = 1.10;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFShadowMap;
   renderer.shadowMap.autoUpdate = false;
@@ -182,28 +198,36 @@ function initialise() {
 
   const planCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, .05, 100);
   const interiorCamera = new THREE.PerspectiveCamera(61, 1, .035, 70);
+  const walkCamera = new THREE.PerspectiveCamera(67, 1, .05, 45);
   let camera = planCamera;
   const scene = new THREE.Scene();
   const environment = new RoomEnvironment();
   const pmrem = new THREE.PMREMGenerator(renderer);
   scene.environment = pmrem.fromScene(environment, .12).texture;
-  scene.environmentIntensity = .57;
+  scene.environmentIntensity = .70;
   environment.dispose();
   pmrem.dispose();
   const model = makeApartment();
   scene.add(model.root);
-  scene.add(new THREE.HemisphereLight('#f6f8ff', '#b5a18e', .98));
-  const sun = new THREE.DirectionalLight('#fff8ee', 2.35);
-  sun.position.set(-6, 15, 1.8);
+  scene.add(new THREE.HemisphereLight('#f4f7ff', '#b9a999', .83));
+  const sun = new THREE.DirectionalLight('#fff3df', 2.05);
+  sun.position.set(-10, 8.2, 3.2);
   sun.target.position.set(3, 0, 5.5);
   sun.castShadow = true;
   const shadow = sun.shadow;
   Object.assign(shadow.camera, { left: -7.5, right: 7.5, top: 8, bottom: -8, near: .5, far: 40 });
   shadow.camera.updateProjectionMatrix();
-  shadow.mapSize.set(1536, 1536);
-  shadow.normalBias = .011;
-  shadow.radius = 2.7;
+  shadow.mapSize.set(2048, 2048);
+  shadow.bias = -.00013;
+  shadow.normalBias = .017;
+  shadow.radius = 3.1;
   scene.add(sun, sun.target);
+  // Low-intensity cool fill suggests bounced daylight at the two facade windows.
+  for (const z of [1.36, 5.58]) {
+    const bounce = new THREE.PointLight('#e6efff', 3.8, 4.2, 2);
+    bounce.position.set(.38, 1.68, z);
+    scene.add(bounce);
+  }
   const lampPositions = [
     [5.56, 1.33, 3.45, 1.3], [1.69, .70, .24, .24], [2.28, .69, .24, .33],
     [2.90, .70, .24, .24], [2.27, 1.73, 3.22, 1.15], [4.42, 1.36, .51, .88],
@@ -220,6 +244,15 @@ function initialise() {
   controls.maxPolarAngle = Math.PI * .49;
   controls.minPolarAngle = 0;
 
+  let walking = false;
+  const walkthrough = makeWalkthrough({
+    plan: APARTMENT_PLAN, camera: walkCamera, viewport, canvas, panel: $('walk-panel'), render,
+    roomChanged(room) {
+      $('walk-room').textContent = ROOMS[room].name;
+      selectRoom(room);
+    },
+  });
+  walkthrough.setFurniture(model.walkObstacles());
   const point = new THREE.Vector3();
   function project(x, z, height = .035) {
     point.set(x, height, z).project(camera);
@@ -231,6 +264,7 @@ function initialise() {
   }
   function render() {
     renderer.render(scene, camera);
+    if (isWalkView()) return;
     for (const [id, label] of labels) {
       const [x, z] = ROOMS[id].label;
       const position = project(x, z);
@@ -254,11 +288,26 @@ function initialise() {
     const detail = isClosetView();
     const top = isPlanView();
     const shot = interiorShots[focusedRoom];
+    const walk = isWalkView();
+    controls.enabled = !walk;
+    model.setWalking(walk);
     model.focusCloset(detail, view === 'wic-plan');
-    model.showFurniture(view === 'orbit', focusedRoom);
+    model.showFurniture(view === 'orbit' || walk, focusedRoom);
     updateWallVisibility(model);
     renderer.shadowMap.needsUpdate = true;
-    model.highlight(selection, Boolean(shot));
+    model.highlight(selection, Boolean(shot) || walk);
+    if (walk) {
+      camera = walkCamera;
+      renderer.toneMappingExposure = 1.08;
+      $('labels').hidden = $('map-pins').hidden = true;
+      if (!walking) walkthrough.enter();
+      walking = true;
+      walkthrough.resize(width, height);
+      return;
+    }
+    if (walking) walkthrough.leave();
+    walking = false;
+    $('labels').hidden = $('map-pins').hidden = false;
     controls.enableRotate = !top;
     controls.mouseButtons.LEFT = top ? THREE.MOUSE.PAN : THREE.MOUSE.ROTATE;
     controls.touches.ONE = top ? THREE.TOUCH.PAN : THREE.TOUCH.ROTATE;
@@ -272,13 +321,13 @@ function initialise() {
       controls.target.set(...target);
       camera.updateProjectionMatrix();
       controls.update();
-      renderer.toneMappingExposure = 1.06;
+      renderer.toneMappingExposure = 1.08;
       render();
       return;
     }
     camera = planCamera;
     controls.object = camera;
-    renderer.toneMappingExposure = 1.14;
+    renderer.toneMappingExposure = 1.10;
     const focusFloor = focusedRoom && model.floors.get(focusedRoom);
     const doors = focusedRoom === 'doors';
     const doorBounds = new THREE.Box3(new THREE.Vector3(2.88, 0, 7.33), new THREE.Vector3(4.98, 2.64, 7.69));
@@ -318,7 +367,7 @@ function initialise() {
     if (!event.isPrimary) return;
     const start = down;
     down = null;
-    if (isClosetView() || !start || Math.hypot(event.clientX - start[0], event.clientY - start[1]) > 5) return;
+    if (isWalkView() || isClosetView() || !start || Math.hypot(event.clientX - start[0], event.clientY - start[1]) > 5) return;
     const rect = canvas.getBoundingClientRect();
     pointer.set((event.clientX - rect.left) / rect.width * 2 - 1, 1 - (event.clientY - rect.top) / rect.height * 2);
     ray.setFromCamera(pointer, camera);
@@ -345,10 +394,15 @@ function initialise() {
   model.loadFurniture().then((failures) => {
     assetStatus.hidden = failures === 0;
     assetStatus.textContent = failures ? 'Some furniture could not load. Refresh to retry.' : '';
+    walkthrough.setFurniture(model.walkObstacles());
     renderer.shadowMap.needsUpdate = true;
     render();
   });
-  return { model, frame, render };
+  return {
+    model, frame, render,
+    lightChanged() { renderer.shadowMap.needsUpdate = true; render(); },
+    jumpWalk(room) { walkthrough.jump(room); viewport.focus({ preventScroll: true }); },
+  };
 }
 
 try {

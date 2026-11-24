@@ -3,6 +3,7 @@ import plan from './plan.json' with { type: 'json' };
 import { floorFinish, paintFinish, finishFurniture } from './surfaces.js';
 import { loadFurnishings } from './furnishings.js';
 import { applyCleanTimber } from './timber.js';
+import { thresholds } from './navigation.js';
 import { addPlanWall, makeOpenings } from './openings.js';
 import { CLOSET, GARMENT_ALLOWANCE_MM, RACK_FRONT, RAIL_END, makeWardrobe } from './wardrobe.js';
 
@@ -52,6 +53,7 @@ function addWall(group, [x1, z1, x2, z2], height = CLOSET.height, base = 0) {
   const wall = box(length, height, .13, (x1 + x2) / 2, base + height / 2, (z1 + z2) / 2,
     [wallSurface, wallSurface, wallCap, wallSurface, wallSurface, wallSurface]);
   wall.receiveShadow = true;
+  wall.castShadow = true;
   wall.rotation.y = -Math.atan2(z2 - z1, x2 - x1);
   group.add(wall);
   if (base > 0 || height < .08) return;
@@ -66,10 +68,21 @@ export function makeApartment() {
   const shell = new THREE.Group();
   const fixtures = new THREE.Group();
   let furnitureFocus;
+  let walking = false;
   const ceilings = new Map();
   const fixturePacks = { master: 'bedroom', work: 'work', bath: 'bath', living: 'social', kitchen: 'social', dining: 'social', entry: 'social' };
   const walls = new THREE.Group();
   const { windows, doors } = makeOpenings(box);
+  const openLeaves = new THREE.Group();
+  const openLeafSurface = new THREE.MeshStandardMaterial({ color: '#623b2a', roughness: .51, name: 'Entrance teak' });
+  const openLeafSpecs = [[4.16, 7.53, .726], [3.855, 7.568, .854]];
+  for (const [x, z, span] of openLeafSpecs) {
+    const leaf = box(.045, 2.128, span, x, 1.074, z + span / 2, openLeafSurface);
+    leaf.castShadow = true;
+    leaf.receiveShadow = true;
+    openLeaves.add(leaf);
+  }
+  openLeaves.visible = false;
   const closet = makeWardrobe(box, plan.wardrobe, material);
   paintFinish(wallSurface);
   closet.traverse((item) => {
@@ -116,19 +129,32 @@ export function makeApartment() {
     mesh.receiveShadow = true;
     shell.add(mesh);
     floors.set(id, mesh);
-    if (id !== 'wic') {
-      const ceiling = floor(exactPoints, ceilingPaint);
-      ceiling.position.y = CLOSET.height;
-      ceiling.visible = false;
-      shell.add(ceiling);
-      ceilings.set(id, ceiling);
-    }
+    const ceiling = floor(exactPoints, ceilingPaint);
+    ceiling.position.y = CLOSET.height;
+    ceiling.receiveShadow = true;
+    ceiling.visible = false;
+    shell.add(ceiling);
+    ceilings.set(id, ceiling);
   }
   const recessSurface = material('#b49a7d');
   for (const points of plan.recesses) shell.add(floor(points, recessSurface));
   // Original trace retains the short entrance pocket. Its wall lengths are approximate.
   for (const wall of plan.walls) addPlanWall(walls, wall, addWall, CLOSET.height);
-  shell.add(walls, windows, doors);
+  const thresholdSurface = material('#bbb1a6');
+  floorFinish(thresholdSurface, false);
+  for (const polygon of thresholds) {
+    const sill = floor(polygon, thresholdSurface);
+    sill.position.y -= .0015;
+    sill.receiveShadow = true;
+    shell.add(sill);
+  }
+  for (const assembly of [...windows.children, ...doors.children]) {
+    for (const mesh of assembly.children) {
+      mesh.castShadow = !mesh.material.transparent;
+      mesh.receiveShadow = !mesh.material.transparent;
+    }
+  }
+  shell.add(walls, windows, doors, openLeaves);
   root.add(shell, fixtures, closet, closetShell);
   closetShell.visible = false;
   const overviewBounds = new THREE.Box3().setFromObject(root);
@@ -149,7 +175,7 @@ export function makeApartment() {
   function applyFurnitureFocus() {
     const pack = furnitureFocus === 'doors' ? 'doors' : fixturePacks[furnitureFocus];
     for (const scene of fixtures.children) {
-      scene.visible = !pack || scene.name === pack || (pack === 'social' && scene.name === 'doors');
+      scene.visible = walking ? scene.name !== 'doors' : !pack || scene.name === pack || (pack === 'social' && scene.name === 'doors');
     }
     closet.visible = !furnitureFocus;
   }
@@ -164,8 +190,30 @@ export function makeApartment() {
         }),
         applyCleanTimber(closet, true),
         applyCleanTimber(doors, true),
+        applyCleanTimber(openLeaves, true),
       ]);
       return failures;
+    },
+    setWalking(active) {
+      walking = active;
+      openLeaves.visible = active;
+      applyFurnitureFocus();
+    },
+    walkObstacles() {
+      root.updateMatrixWorld(true);
+      const obstacles = [];
+      const bounds = new THREE.Box3();
+      function record(object) {
+        bounds.setFromObject(object);
+        if (bounds.min.y >= 1.77 || bounds.max.y <= .025) return;
+        obstacles.push({ minX: bounds.min.x, minZ: bounds.min.z, maxX: bounds.max.x, maxZ: bounds.max.z });
+      }
+      for (const scene of fixtures.children) {
+        if (scene.name !== 'doors') scene.children.forEach(record);
+      }
+      closet.traverse((item) => { if (item.isMesh) record(item); });
+      openLeaves.children.forEach(record);
+      return obstacles;
     },
     showFurniture(visible, focus) {
       fixtures.visible = visible;
@@ -177,7 +225,10 @@ export function makeApartment() {
       windows.visible = visible && !closetView;
       doors.visible = visible && !closetView;
       closetShell.visible = visible && closetView;
-      for (const [room, ceiling] of ceilings) ceiling.visible = visible && room === roomView;
+      for (const [room, ceiling] of ceilings) {
+        ceiling.visible = visible && (walking || room === roomView);
+        ceiling.castShadow = walking;
+      }
     },
     focusCloset(isDetail, showClearance = false) {
       shell.visible = fixtures.visible = !isDetail;
