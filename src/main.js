@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { APARTMENT_PLAN, ROOMS, makeApartment } from './model.js';
 import { JOINERY, RAIL_CLEARANCE_MM, STANDING_DEPTH_MM, GARMENT_ALLOWANCE_MM } from './wardrobe.js';
 import './style.css';
@@ -22,6 +23,15 @@ function element(tag, content) {
   node.textContent = content;
   return node;
 }
+
+const interiorShots = {
+  master: [[3.32, 1.35, 2.90], [1.91, .67, .96]],
+  work: [[1.44, 1.27, 8.16], [2.85, .65, 9.85]],
+  bath: [[4.17, 1.36, 1.99], [5.13, .85, .92]],
+  kitchen: [[4.06, 1.46, 4.20], [5.87, 1.03, 3.33]],
+  dining: [[3.07, 1.45, 6.13], [5.33, .95, 4.88]],
+  living: [[3.48, 1.43, 6.30], [1.48, 1.05, 4.12]],
+};
 
 const roomNotes = {
   master: 'The render shows a teak platform bed, terracotta headboard and fitted storage.',
@@ -70,7 +80,7 @@ function selectRoom(id) {
     button.setAttribute('aria-pressed', String(roomId === id));
     labels.get(roomId).classList.toggle('active', roomId === id);
   }
-  sceneView?.model.highlight(id);
+  sceneView?.model.highlight(id, Boolean(interiorShots[focusedRoom]));
   sceneView?.render();
 }
 
@@ -117,6 +127,7 @@ $('focus-room').addEventListener('click', () => {
   setView('orbit');
   focusedRoom = selection;
   sceneView?.frame();
+  viewport.scrollIntoView({ block: 'center' });
 });
 $('focus-doors').addEventListener('click', () => {
   setView('orbit');
@@ -139,8 +150,9 @@ $('reset').addEventListener('click', () => {
 
 function initialise() {
   const renderer = new THREE.WebGLRenderer({ antialias: true });
-  renderer.setClearColor('#eae8df');
-  renderer.toneMapping = THREE.NeutralToneMapping;
+  renderer.setClearColor('#eae7de');
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.14;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFShadowMap;
   renderer.shadowMap.autoUpdate = false;
@@ -149,12 +161,20 @@ function initialise() {
   canvas.setAttribute('role', 'img');
   viewport.prepend(canvas);
 
-  const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, .05, 100);
+  const planCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, .05, 100);
+  const interiorCamera = new THREE.PerspectiveCamera(61, 1, .035, 70);
+  let camera = planCamera;
   const scene = new THREE.Scene();
+  const environment = new RoomEnvironment();
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  scene.environment = pmrem.fromScene(environment, .12).texture;
+  scene.environmentIntensity = .57;
+  environment.dispose();
+  pmrem.dispose();
   const model = makeApartment();
   scene.add(model.root);
-  scene.add(new THREE.HemisphereLight('#fff8ed', '#a59e93', 1.72));
-  const sun = new THREE.DirectionalLight('#fff5e9', 2.05);
+  scene.add(new THREE.HemisphereLight('#f6f8ff', '#b5a18e', .98));
+  const sun = new THREE.DirectionalLight('#fff8ee', 2.35);
   sun.position.set(-6, 15, 1.8);
   sun.target.position.set(3, 0, 5.5);
   sun.castShadow = true;
@@ -162,11 +182,19 @@ function initialise() {
   Object.assign(shadow.camera, { left: -7.5, right: 7.5, top: 8, bottom: -8, near: .5, far: 40 });
   shadow.camera.updateProjectionMatrix();
   shadow.mapSize.set(1536, 1536);
-  shadow.normalBias = .017;
+  shadow.normalBias = .011;
+  shadow.radius = 2.7;
   scene.add(sun, sun.target);
+  const lampPositions = [[5.56, 1.33, 3.45], [2.32, .69, .28], [2.27, 1.73, 3.22], [4.42, 1.36, .51]];
+  for (const position of lampPositions) {
+    const bounce = new THREE.PointLight('#ffcf9d', 3.1, 1.4, 2);
+    bounce.position.set(...position);
+    scene.add(bounce);
+  }
   const controls = new OrbitControls(camera, canvas);
   controls.minZoom = .55;
   controls.maxZoom = 4;
+  controls.minDistance = .40;
   controls.maxPolarAngle = Math.PI * .49;
   controls.minPolarAngle = 0;
 
@@ -184,13 +212,13 @@ function initialise() {
     for (const [id, label] of labels) {
       const [x, z] = ROOMS[id].label;
       const position = project(x, z);
-      label.hidden = isClosetView() || focusedRoom === 'doors' || portal?.placing || !position.visible;
+      label.hidden = isClosetView() || Boolean(focusedRoom) || portal?.placing || !position.visible;
       label.style.left = position.left;
       label.style.top = position.top;
     }
     portal?.renderPins((x, z) => {
       const position = project(x, z, isPlanView() ? .05 : .17);
-      if (focusedRoom === 'doors') position.visible = false;
+      if (focusedRoom) position.visible = false;
       return position;
     }, isClosetView() ? 'wic' : null);
   }
@@ -203,10 +231,32 @@ function initialise() {
     renderer.setSize(width, height, false);
     const detail = isClosetView();
     const top = isPlanView();
+    const shot = interiorShots[focusedRoom];
     model.focusCloset(detail, view === 'wic-plan');
     model.showFurniture(view === 'orbit', focusedRoom === 'doors');
     model.showWalls(wallsVisible, detail);
     renderer.shadowMap.needsUpdate = true;
+    model.highlight(selection, Boolean(shot));
+    controls.enableRotate = !top;
+    controls.mouseButtons.LEFT = top ? THREE.MOUSE.PAN : THREE.MOUSE.ROTATE;
+    controls.touches.ONE = top ? THREE.TOUCH.PAN : THREE.TOUCH.ROTATE;
+    if (shot) {
+      camera = interiorCamera;
+      controls.object = camera;
+      const [position, target] = shot;
+      camera.aspect = width / height;
+      camera.fov = camera.aspect < .9 ? 72 : 61;
+      camera.position.set(...position);
+      controls.target.set(...target);
+      camera.updateProjectionMatrix();
+      controls.update();
+      renderer.toneMappingExposure = 1.23;
+      render();
+      return;
+    }
+    camera = planCamera;
+    controls.object = camera;
+    renderer.toneMappingExposure = 1.14;
     const focusFloor = focusedRoom && model.floors.get(focusedRoom);
     const doors = focusedRoom === 'doors';
     const doorBounds = new THREE.Box3(new THREE.Vector3(2.88, 0, 7.33), new THREE.Vector3(4.98, 2.64, 7.69));
@@ -230,9 +280,6 @@ function initialise() {
     camera.bottom = -half;
     camera.updateProjectionMatrix();
     controls.target.copy(target);
-    controls.enableRotate = !top;
-    controls.mouseButtons.LEFT = top ? THREE.MOUSE.PAN : THREE.MOUSE.ROTATE;
-    controls.touches.ONE = top ? THREE.TOUCH.PAN : THREE.TOUCH.ROTATE;
     controls.update();
     render();
   }

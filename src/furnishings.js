@@ -1,3 +1,4 @@
+import { finishFurniture } from './surfaces.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 export const FURNITURE_PACKS = ['social', 'doors', 'bedroom', 'work', 'bath'];
@@ -10,6 +11,7 @@ export async function loadFurnishings(group) {
     scene.name = room;
     scene.traverse((node) => {
       if (node.isMesh) {
+        finishFurniture(node.material);
         node.castShadow = !node.material.transparent;
         node.receiveShadow = !node.material.transparent;
       }

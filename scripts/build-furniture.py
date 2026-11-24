@@ -146,6 +146,115 @@ def cushion(name, w, d, h, x, y, z, mat, ripple=.002):
         vert.co.y = -z - math.copysign(abs(pz) ** .61, pz) * d / 2
 
 
+cotton = material("Ivory cotton percale bedding", (.85, .839, .815), .91)
+cotton_thread = material("Ivory stitching", (.67, .655, .623), .89)
+olive_cloth = material("Olive woven accent pillow", (.105, .128, .073), .94)
+olive_thread = material("Olive piping", (.075, .095, .046), .92)
+
+
+def fabric_grid(name, rows, cols, point, mat, thickness=0):
+    vertices = [xyz(*point(i / cols, j / rows)) for j in range(rows + 1) for i in range(cols + 1)]
+    faces = []
+    for j in range(rows):
+        for i in range(cols):
+            a = j * (cols + 1) + i
+            faces.append((a, a + cols + 1, a + cols + 2, a + 1))
+    mesh = bpy.data.meshes.new(name)
+    mesh.from_pydata(vertices, [], faces)
+    mesh.update()
+    uv = mesh.uv_layers.new(name="Fabric UV")
+    for loop in mesh.loops:
+        j, i = divmod(loop.vertex_index, cols + 1)
+        uv.data[loop.index].uv = (i / cols, j / rows)
+    obj = bpy.data.objects.new(name, mesh)
+    bpy.context.collection.objects.link(obj)
+    surface(obj, name, mat)
+    for face in mesh.polygons:
+        face.use_smooth = True
+    if thickness:
+        seam = obj.modifiers.new("Closed fabric hem", 'SOLIDIFY')
+        seam.thickness = thickness
+        seam.offset = -1
+    return obj
+
+
+def seam_line(name, points, mat, radius=.0018):
+    centers = [Vector(xyz(*point)) for point in points]
+    vertices = []
+    sides = 6
+    for i, center in enumerate(centers):
+        forward = (centers[min(i + 1, len(centers) - 1)] - centers[max(0, i - 1)]).normalized()
+        across = forward.cross(Vector((0, 0, 1)))
+        if across.length < .001:
+            across = forward.cross(Vector((0, 1, 0)))
+        across.normalize()
+        up = across.cross(forward).normalized()
+        for side in range(sides):
+            theta = math.tau * side / sides
+            vertices.append(center + radius * (math.cos(theta) * across + math.sin(theta) * up))
+    faces = [
+        (i * sides + j, (i + 1) * sides + j, (i + 1) * sides + (j + 1) % sides, i * sides + (j + 1) % sides)
+        for i in range(len(centers) - 1) for j in range(sides)
+    ]
+    data = bpy.data.meshes.new(name)
+    data.from_pydata(vertices, [], faces)
+    data.update()
+    obj = bpy.data.objects.new(name, data)
+    bpy.context.collection.objects.link(obj)
+    surface(obj, name, mat)
+    for face in data.polygons:
+        face.use_smooth = True
+
+
+def drape(name, width, z_start, z_end, mattress_width, mattress_foot, top, fall, mat=cotton):
+    def point(u, v):
+        local_x = (u - .5) * width
+        local_z = z_start + (z_end - z_start) * v
+        edge_side = max(0, (abs(local_x) - (mattress_width / 2 - .035)) / (width / 2 - mattress_width / 2 + .035))
+        edge_foot = max(0, (local_z - (mattress_foot - .04)) / (z_end - mattress_foot + .04)) if z_end > mattress_foot else 0
+        drop = min(1, max(edge_side, edge_foot))
+        fold = (math.sin(26 * local_z + local_x * 10) + .37 * math.sin(54 * local_z - 9 * local_x))
+        valleys = math.sin(7 * math.pi * v + .25 * math.sin(5 * math.pi * u))
+        batting = .012 + .010 * math.sin(math.pi * u)**2 * math.sin(math.pi * v)
+        y = top + batting + .006 * valleys + .006 * math.sin(34 * u + 18 * v) * math.sin(math.pi * v)
+        y += (.008 + .013 * drop) * fold * min(1, drop * 1.4)
+        y -= fall * drop**1.58
+        # Tuck the shoulders under at the foot so the quilt reads as a curved volume.
+        x = local_x - math.copysign(.019 * edge_side**2, local_x) * (.6 + .4 * v)
+        z = local_z - .017 * edge_foot**2 + .007 * drop * math.sin(32 * u + 11 * v)
+        return x, y, z
+
+    fabric_grid(name, 42, 36, point, mat, .003)
+    for u in (0, 1):
+        seam_line(f"{name} sewn side hem", [point(u, i/42) for i in range(43)], cotton_thread)
+    for v in (0, 1):
+        seam_line(f"{name} stitched binding", [point(i/36, v) for i in range(37)], cotton_thread)
+    if mat == cotton:
+        for v in (.17, .36, .55, .74):
+            seam_line("Subtle quilt stitching", [(x, y + .0009, z) for x, y, z in (point(i/34, v) for i in range(2,33))],
+                      cotton_thread, .00075)
+
+
+def sewn_pillow(name, w, depth, height, x, y, z, angle, lean, mat, trim):
+    cos_yaw, sin_yaw = math.cos(angle), math.sin(angle)
+
+    def point(u, v, lid):
+        a, b = 2*u-1, 2*v-1
+        envelope = max(0, (1-a*a) * (1-b*b))
+        side = (2*u-1) * w/2 * (1-.062*abs(b)**8)
+        fore = (2*v-1) * depth/2 * (1-.075*abs(a)**8)
+        puff = height * (.46 if lid else -.29) * envelope**.74
+        pinch = .008 * math.sin(17*a+5*b) * (abs(b)**3 + abs(a)**3) * envelope**.6
+        return (x + side*cos_yaw - fore*sin_yaw, y + puff + pinch - fore*lean,
+                z + side*sin_yaw + fore*cos_yaw)
+
+    fabric_grid(name, 20, 24, lambda u, v: point(u, v, True), mat)
+    fabric_grid(f"{name} reverse", 20, 24, lambda u, v: point(1-u, v, False), mat)
+    edge = [(i/24,0) for i in range(25)] + [(1,i/20) for i in range(1,21)]
+    edge += [(1-i/24,1) for i in range(1,25)] + [(0,1-i/20) for i in range(1,21)]
+    seam_line(f"{name} corded seam", [point(u,v,True) for u,v in edge], trim, .0028)
+
+
 def cabinet(w, h, d, count=2, front=teak, open_shelves=False, base=.08):
     t = .018
     panel("Recessed toe kick", w - .04, base, d - .06, 0, base / 2, -.018, end_grain)
@@ -289,12 +398,13 @@ for y in (.44, .982, 1.524, 2.109):
 asset("bedroom", "F15–F16 Main bedroom upholstered platform", 2.22, 1.18)
 panel("Chamfered platform", 1.83, .208, 2.015, 0, .147, .01, teak, .026)
 panel("Shadow reveal plinth", 1.73, .08, 1.91, 0, .04, .012, end_grain, .012)
-cushion("Rounded mattress", 1.75, 1.93, .186, 0, .343, .022, white)
-cushion("Draped duvet", 1.74, 1.36, .087, 0, .455, .30, white, .005)
-panel("Folded Avena bed runner", 1.749, .037, .405, 0, .503, .690, fabric, .017)
-for x in (-.44, .44):
-    cushion("Tailored pillow", .64, .32, .115, x, .448, -.70, white, .003)
-    cushion("Green lumbar cushion", .48, .21, .121, x, .491, -.48, olive, .004)
+panel("Tailored cotton mattress", 1.72, .170, 1.91, 0, .333, .015, cotton, .038)
+panel("Inset fitted sheet", 1.714, .021, 1.902, 0, .421, .017, cotton, .009)
+drape("Box-quilted white duvet", 1.824, -.455, 1.018, 1.72, .963, .435, .15)
+drape("Avena Linen foot runner", 1.841, .53, .920, 1.72, .925, .472, .108, fabric)
+for x, yaw in ((-.43,-.10), (.43,.06)):
+    sewn_pillow("White sham", .69, .39, .135, x, .503, -.736, yaw, .26, cotton, cotton_thread)
+    sewn_pillow("Olive accent cushion", .45, .245, .136, x+.012, .565, -.526, -yaw, .42, olive_cloth, olive_thread)
 panel("Terracotta headboard backing", 2.16, .557, .067, .165, .326, -1.081, rust, .01)
 for i in range(7):
     panel("Upholstered headboard panel", .299, .376, .036, -.755 + .307 * i, .34, -1.038, fabric, .018)
@@ -332,9 +442,10 @@ panel("Teak display back", .426, 1.11, .016, -.917, .978, -.165, end_grain)
 asset("work", "F08–F09 Storage daybed", 2.82, 9.87)
 rotate(-90)
 cabinet(1.12, .307, 1.84, 2, base=.063)
-cushion("Daybed mattress", 1.09, 1.78, .151, 0, .382, 0, white)
-cushion("Wrapped coverlet", 1.079, 1.09, .06, 0, .474, .31, fabric)
-cushion("Olive pillow", .66, .35, .112, 0, .477, -.608, olive)
+panel("Daybed mattress with fitted sheet", 1.08, .147, 1.78, 0, .381, 0, cotton, .033)
+drape("White tailored daybed coverlet", 1.174, -.375, .921, 1.08, .882, .459, .104)
+sewn_pillow("Daybed white sham", .68, .345, .119, -.12, .51, -.66, -.11, .22, cotton, cotton_thread)
+sewn_pillow("Daybed olive cushion", .42, .273, .12, .174, .558, -.493, .12, .34, olive_cloth, olive_thread)
 panel("Headboard panel", 1.22, .76, .049, 0, .38, -.968, teak, .011)
 asset("work", "F10 Olive working-room storage", 1.20, 8.88)
 rotate(90)
@@ -391,7 +502,11 @@ panel("Soft-close concealed cistern", .126, .465, .367, .177, .246, 0, ceramic, 
 
 # Bake modifiers and batch same-material meshes per assembly so WebGL can render efficiently.
 bpy.context.view_layer.update()
+import sys
+requested = set(sys.argv[sys.argv.index("--") + 1:]) if "--" in sys.argv else set()
 for room, assemblies in room_nodes.items():
+    if requested and room not in requested:
+        continue
     for assembly in assemblies:
         by_material = {}
         for obj in list(assembly.children):

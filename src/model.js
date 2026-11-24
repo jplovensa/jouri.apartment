@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import plan from './plan.json' with { type: 'json' };
+import { floorFinish, paintFinish, finishFurniture } from './surfaces.js';
 import { loadFurnishings } from './furnishings.js';
 import { CLOSET, GARMENT_ALLOWANCE_MM, RACK_FRONT, RAIL_END, makeWardrobe } from './wardrobe.js';
 
@@ -42,42 +43,6 @@ function floor(points, surface) {
   return mesh;
 }
 
-const floorTextures = new Map();
-function floorTexture(planks) {
-  if (typeof document === 'undefined') return null;
-  if (floorTextures.has(planks)) return floorTextures.get(planks);
-  const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = 256;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return null;
-  for (let y = 0; y < 256; y++) {
-    const band = Math.floor(y / 42.7);
-    const level = planks ? 215 + ((band * 11) % 24) : 233;
-    ctx.fillStyle = `rgb(${level},${level},${level})`;
-    ctx.fillRect(0, y, 256, 1);
-    if (planks && y % 4 === 0) {
-      ctx.fillStyle = 'rgba(66,45,25,.08)';
-      ctx.fillRect((band * 25 + y * 4) % 125, y, 140, .8);
-    }
-  }
-  ctx.fillStyle = planks ? '#a09b96' : '#bbb5ad';
-  if (planks) {
-    for (let i = 0; i < 6; i++) {
-      ctx.fillRect(0, i * 42.7, 256, 1);
-      ctx.fillRect((i * 89) % 256, i * 42.7, 1, 42.7);
-    }
-  } else {
-    ctx.fillRect(0, 0, 256, 1.1);
-    ctx.fillRect(0, 0, 1.1, 256);
-  }
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-  texture.colorSpace = THREE.SRGBColorSpace;
-  texture.repeat.set(planks ? .87 : 1 / .60, planks ? .94 : 1 / .60);
-  floorTextures.set(planks, texture);
-  return texture;
-}
-
 function addWall(group, [x1, z1, x2, z2], height = CLOSET.height) {
   const length = Math.hypot(x2 - x1, z2 - z1);
   const wall = box(length, height, .13, (x1 + x2) / 2, height / 2, (z1 + z2) / 2,
@@ -94,6 +59,10 @@ export function makeApartment() {
   let doorFocus = false;
   const walls = new THREE.Group();
   const closet = makeWardrobe(box, plan.wardrobe, material);
+  paintFinish(wallSurface);
+  closet.traverse((item) => {
+    if (item.isMesh) finishFurniture(item.material);
+  });
   const closetShell = new THREE.Group();
   const clearance = new THREE.Group();
   const guideHeight = 2.64;
@@ -129,7 +98,7 @@ export function makeApartment() {
       ? points.map(([x, z]) => [x, z === 7.978 ? plan.wardrobe.z - depth : z])
       : points;
     const surface = material(room.color);
-    surface.map = floorTexture(id === 'master' || id === 'work');
+    floorFinish(surface, id === 'master' || id === 'work');
     const mesh = floor(exactPoints, surface);
     mesh.userData.room = id;
     mesh.receiveShadow = true;
@@ -148,7 +117,9 @@ export function makeApartment() {
     new THREE.Vector3(plan.wardrobe.x - width - .15, 0, plan.wardrobe.z - depth - .12),
     new THREE.Vector3(plan.wardrobe.x + .15, CLOSET.height, plan.wardrobe.z + .12),
   );
-  const detailFloor = floor([[0, 0], [width, 0], [width, depth], [0, depth]], material(ROOMS.wic.color));
+  const detailSurface = material(ROOMS.wic.color);
+  floorFinish(detailSurface, false);
+  const detailFloor = floor([[0, 0], [width, 0], [width, depth], [0, depth]], detailSurface);
   const detailFloorGroup = new THREE.Group();
   detailFloorGroup.position.copy(closet.position);
   detailFloorGroup.rotation.copy(closet.rotation);
@@ -191,10 +162,10 @@ export function makeApartment() {
       closetShell.visible = detailFloorGroup.visible = isDetail;
       clearance.visible = isDetail && showClearance;
     },
-    highlight(id) {
+    highlight(id, realistic = false) {
       for (const [key, mesh] of floors) {
         mesh.material[0].color.set(ROOMS[key].color);
-        if (key === id) mesh.material[0].color.lerp(selected, .72);
+        if (key === id && !realistic) mesh.material[0].color.lerp(selected, .72);
       }
     },
   };
